@@ -88,3 +88,33 @@ test('built-in summaries follow their inputs and legacy sample repair preserves 
   const realJob = { ...legacy, id: 'saved-member-job' };
   assert.equal(app.refreshLegacySample(realJob), realJob);
 });
+
+test('program quotes use the published retail and labor rates for trade services', () => {
+  assert.equal(sample.addonRateMode, 'live');
+  assert.equal(caliwag.addonRateMode, 'live');
+  // The program sheet leaves the plumbing disconnect labor payout blank.
+  const services = [
+    ['plumbDisc', 'Sink', 600, 288],
+    ['plumbKitchen', 'Sink', 1400, 800],
+    ['plumbVanity', 'Sink', 800, 650],
+    ['showerPan', 'Each', 1500, 850],
+    ['elecDisc', 'Each', 600, 300],
+    ['elecReconn', 'Each', 600, 300]
+  ];
+  for (const [id, unit, retail, cost] of services) {
+    const quote = app.calculateEstimate({ ...counterJob(0, 0), addonQuantities: { [id]: 2 } });
+    const [line] = quote.activeAddonLines;
+    assert.equal(line.unit, unit, id);
+    assert.equal(quote.estimatorPreTaxSubtotal, 2 * retail, id);
+    assert.equal(quote.totalJobCogs, 2 * cost, id);
+    assert.equal(Boolean(line.estimatedCogs), id === 'plumbDisc', id);
+  }
+});
+
+test('existing plumbing quotes retain the selected retail mode', () => {
+  const job = { ...counterJob(0, 0), addonQuantities: { plumbKitchen: 1, plumbVanity: 1 } };
+  assert.equal(app.calculateEstimate({ ...job, addonRateMode: 'live' }).estimatorPreTaxSubtotal, 2200);
+  assert.equal(app.calculateEstimate({ ...job, addonRateMode: 'target' }).estimatorPreTaxSubtotal, 3021);
+  delete job.addonRateMode;
+  assert.equal(app.calculateEstimate(job).estimatorPreTaxSubtotal, 3021);
+});

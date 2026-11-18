@@ -447,18 +447,17 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
           <div>
             <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">5. A La Carte Add-Ons & Services</h2>
-            <p class="text-xs text-slate-500 mt-0.5">40% Margin Target Rates active by default (toggle to inspect Live Sheet Rates).</p>
+            <p class="text-xs text-slate-500 mt-0.5">New estimates use Costco Program Rates. Selecting Margin Target Rates changes the prices on this quote.</p>
           </div>
 
-          <!-- Rate Mode Toggle: 40% Margin Target Rates (Default) vs Live Sheet Rates -->
           <div class="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center gap-1 self-start sm:self-auto">
-            <button type="button" id="btnRateTarget" onclick="setAddonRateMode('target')"
-              class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-sm">
-              40% Margin Target Rates
+            <button type="button" id="btnRateLive" onclick="setAddonRateMode('live')" aria-pressed="true"
+              class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-slate-800 text-white shadow-sm">
+              Costco Program Rates
             </button>
-            <button type="button" id="btnRateLive" onclick="setAddonRateMode('live')"
+            <button type="button" id="btnRateTarget" onclick="setAddonRateMode('target')" aria-pressed="false"
               class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:bg-white">
-              Live Sheet Rates
+              40% Margin Target Rates
             </button>
           </div>
         </div>
@@ -478,7 +477,7 @@
             </div>
           </label>
           <span id="protectionCogsBadge" class="hidden text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-1 rounded-lg whitespace-nowrap">
-            COGS: $191.52
+            Estimated COGS: $191.52
           </span>
         </div>
 
@@ -1063,13 +1062,14 @@
       }
     };
 
+    const DEFAULT_ADDON_RATE_MODE = 'live';
     const ADDON_GROUPS = [
       {
         title: 'Fabrication & Edge Upgrades',
         items: [
-          { id: 'waterfall', name: 'Waterfall Panel (36"×28")', unit: 'Each', retailLive: 1700, retailTarget: 1700, cogs: 816, addsNetSf: 7 },
-          { id: 'miterEdge', name: 'Miter Edge (Non-Dekton)', unit: 'LF', retailLive: 30, retailTarget: 30, cogs: 14.40, nonDektonOnly: true },
-          { id: 'outletCutout', name: 'Outlet Cutout', unit: 'Each', retailLive: 25, retailTarget: 25, cogs: 12 },
+          { id: 'waterfall', name: 'Waterfall Panel (36"×28")', unit: 'Each', retailLive: 1700, retailTarget: 1700, cogs: 816, estimatedCogs: true, addsNetSf: 7 },
+          { id: 'miterEdge', name: 'Miter Edge (Non-Dekton)', unit: 'LF', retailLive: 30, retailTarget: 30, cogs: 14.40, estimatedCogs: true, nonDektonOnly: true },
+          { id: 'outletCutout', name: 'Outlet Cutout', unit: 'Each', retailLive: 25, retailTarget: 25, cogs: 12, estimatedCogs: true },
         ]
       },
       {
@@ -1078,16 +1078,16 @@
           { id: 'demoStone', name: 'Demo Stone', unit: 'SF', retailLive: 21, retailTarget: 21, cogs: 10, hasAutoFillSf: true },
           { id: 'demoLam', name: 'Demo SS or Laminate', unit: 'SF', retailLive: 11, retailTarget: 11, cogs: 5, hasAutoFillSf: true },
           { id: 'demoTile', name: 'Demo Tile', unit: 'SF', retailLive: 21, retailTarget: 21, cogs: 10, hasAutoFillSf: true },
-          { id: 'extraCarry', name: 'Oversize Piece / Extra Man', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120 },
-          { id: 'highrise', name: 'Highrise Fee', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120 },
+          { id: 'extraCarry', name: 'Oversize Piece / Extra Man', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120, estimatedCogs: true },
+          { id: 'highrise', name: 'Highrise Fee', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120, estimatedCogs: true },
         ]
       },
       {
         title: 'Licensed Plumbing & Electrical',
         items: [
-          { id: 'elecDisc', name: 'Electrical Disconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 314.14 },
-          { id: 'elecReconn', name: 'Electrical Reconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 314.14 },
-          { id: 'plumbDisc', name: 'Plumbing Disconnect', unit: 'Sink', retailLive: 600, retailTarget: 600, cogs: 288 },
+          { id: 'elecDisc', name: 'Electrical Disconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 300 },
+          { id: 'elecReconn', name: 'Electrical Reconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 300 },
+          { id: 'plumbDisc', name: 'Plumbing Disconnect', unit: 'Sink', retailLive: 600, retailTarget: 600, cogs: 288, estimatedCogs: true },
           { id: 'plumbKitchen', name: 'Plumbing Reconnect – Kitchen', unit: 'Sink', retailLive: 1400, retailTarget: 1667, cogs: 800 },
           { id: 'plumbVanity', name: 'Plumbing Reconnect – Vanity', unit: 'Sink', retailLive: 800, retailTarget: 1354, cogs: 650 },
           { id: 'showerPan', name: 'Shower Pan Install (Standard)', unit: 'Each', retailLive: 1500, retailTarget: 1771, cogs: 850 },
@@ -1109,7 +1109,7 @@
     let state = {
       currentJobId: null,
       viewMode: 'customer',         // 'customer' | 'split' | 'manager'
-      addonRateMode: 'target',      // 'target' (40% Margin Target Rates - Default) | 'live' (Live Sheet Rates)
+      addonRateMode: DEFAULT_ADDON_RATE_MODE,
       selectedTierId: 'tier2',
       selectedColorIndex: 0,
       colorSearchQuery: '',
@@ -1126,7 +1126,7 @@
 
     function initDefaultState() {
       state.currentJobId = 'job_sample_80sf';
-      state.addonRateMode = 'target';
+      state.addonRateMode = DEFAULT_ADDON_RATE_MODE;
       state.selectedTierId = 'tier2';
       state.selectedColorIndex = 0; // Bronze Rivers
       state.colorSearchQuery = '';
@@ -1178,7 +1178,7 @@
           jobOrderNumber: 'OMS-80100',
           customerContact: '(808) 555-0142 • kahala.member@example.com',
           repName: 'TPI Field Rep',
-          addonRateMode: 'target',
+          addonRateMode: DEFAULT_ADDON_RATE_MODE,
           selectedTierId: 'tier2',
           selectedColorIndex: 0, // Bronze Rivers
           shopCardRate: 0.10,
@@ -1207,7 +1207,7 @@
           jobOrderNumber: 'OMS-80419',
           customerContact: '(808) 555-0188 • caliwag@example.com',
           repName: 'TPI Office',
-          addonRateMode: 'target',
+          addonRateMode: DEFAULT_ADDON_RATE_MODE,
           selectedTierId: 'tier3',
           selectedColorIndex: 0, // Et. Calacatta Gold (Polished)
           shopCardRate: 0.10,
@@ -1370,7 +1370,7 @@
 
     function startNewEstimate() {
       state.currentJobId = 'job_' + Date.now();
-      state.addonRateMode = 'target';
+      state.addonRateMode = DEFAULT_ADDON_RATE_MODE;
       state.selectedTierId = 'tier1';
       state.selectedColorIndex = 0; // Miami White
       state.colorSearchQuery = '';
@@ -1396,7 +1396,7 @@
       document.getElementById('extraDirectTpiPreTax').value = '0';
       document.getElementById('extraDirectTpiCogs').value = '0';
 
-      setAddonRateMode('target');
+      setAddonRateMode(state.addonRateMode);
       setShopCardRate(0.10);
       renderTierButtons();
       renderColorDropdown();
@@ -1419,6 +1419,7 @@
 
     function applyEstimateSnapshot(job) {
       state.currentJobId = job.id;
+      // Older saved quotes without a mode were priced with the original target default.
       state.addonRateMode = job.addonRateMode || 'target';
       state.selectedTierId = TIER_CATALOG[job.selectedTierId] ? job.selectedTierId : 'tier2';
       state.selectedColorIndex = job.selectedColorIndex || 0;
@@ -2000,7 +2001,7 @@
       }).join('');
     }
 
-    function getAddonRetail(item, mode = state.addonRateMode) {
+    function getAddonRetail(item, mode) {
       return mode === 'live' ? item.retailLive : item.retailTarget;
     }
 
@@ -2015,10 +2016,10 @@
         const itemsHtml = group.items.map(item => {
           const qty = state.addonQuantities[item.id] || 0;
           const disabled = item.nonDektonOnly && isDekton;
-          const activeRetail = getAddonRetail(item);
+          const activeRetail = getAddonRetail(item, state.addonRateMode);
 
           const subTag = showInternalCogs
-            ? `<span class="text-[11px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded ml-1.5">Sub: $${item.cogs.toFixed(2)}</span>`
+            ? `<span class="text-[11px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded ml-1.5">${item.estimatedCogs ? 'Est. cost' : 'Sub'}: $${item.cogs.toFixed(2)}</span>`
             : '';
 
           const autoFillBtn = item.hasAutoFillSf
@@ -2156,6 +2157,8 @@
       const btnTarget = document.getElementById('btnRateTarget');
       const btnLive = document.getElementById('btnRateLive');
       if (btnTarget && btnLive) {
+        btnTarget.setAttribute('aria-pressed', String(mode === 'target'));
+        btnLive.setAttribute('aria-pressed', String(mode === 'live'));
         if (mode === 'target') {
           btnTarget.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-sm';
           btnLive.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:bg-white';
@@ -2420,6 +2423,7 @@
               qty,
               unit: item.unit,
               retail: lineRetail,
+              estimatedCogs: item.estimatedCogs,
               cogs: lineCogs
             });
           }
@@ -2607,7 +2611,7 @@
       } else {
         mgrSubLinesEl.innerHTML = allCogsLines.map(l => `
           <div class="flex justify-between">
-            <span>${escapeHtml(l.name)} (${l.qty} ${l.unit}):</span>
+            <span>${escapeHtml(l.name)} (${l.qty} ${l.unit})${l.estimatedCogs ? ' · estimated' : ''}:</span>
             <span class="font-semibold text-slate-200">${formatCurrency(l.cogs, 2)}</span>
           </div>
         `).join('');
@@ -2775,7 +2779,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       initDefaultState();
       loadSavedJobsFromStorage();
-      setAddonRateMode('target');
+      setAddonRateMode(state.addonRateMode);
       setShopCardRate(0.10);
       renderTierButtons();
       renderColorDropdown();

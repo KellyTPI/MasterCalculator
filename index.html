@@ -546,7 +546,7 @@
             </div>
             <div class="text-right shrink-0">
               <span id="summaryTierBadge" class="inline-block bg-white/15 text-white text-[11px] sm:text-xs font-bold px-2 py-1 rounded-lg">
-                Tier 2 • $189/SF
+                Tier 2
               </span>
             </div>
           </div>
@@ -567,12 +567,9 @@
 
             <!-- Itemized Quote Lines -->
             <div class="space-y-2.5 text-sm">
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <span class="font-semibold text-slate-800">Fabricated & Installed Countertops</span>
-                  <span id="stoneLineSub" class="block text-xs text-slate-500">90.67 SF @ $189/SF (includes 10-Yr Protection Plan)</span>
-                </div>
-                <span id="stoneLineTotal" class="font-bold text-slate-900 whitespace-nowrap">$17,535.00</span>
+              <div>
+                <span class="font-semibold text-slate-800">Fabricated & Installed Countertops</span>
+                <span id="stoneLineSub" class="block text-xs text-slate-500">90.67 SF (includes 10-Yr Protection Plan)</span>
               </div>
 
               <div id="quoteAddonLines" class="space-y-2 pt-2 border-t border-slate-100">
@@ -1677,6 +1674,9 @@
 
     function editablePdfQuote(job) {
       const text = id => document.getElementById(id).textContent;
+      const { tier, billableStoneSf, includeProtection, customerStonePlusProtection, activeAddonLines } = latestCalc;
+      const installedRate = `$${tier.retailSf}/SF`;
+      const stoneDescription = `${billableStoneSf.toFixed(2)} SF @ ${installedRate}${includeProtection ? ' (includes 10-Yr Protection Plan)' : ''}`;
       return {
         projectName: job.projectName,
         jobOrderNumber: job.jobOrderNumber,
@@ -1684,13 +1684,13 @@
         sections: [
           { heading: 'Material & measurements', rows: [
             ['Selected surface', text('summaryColorName')],
-            ['Tier & installed rate', text('summaryTierBadge')],
+            ['Tier & installed rate', `${tier.shortName} • ${installedRate}`],
             ['Measured area', text('summarySfBreakdown')],
             ['Billable area', text('summaryTotalBillableSf')],
           ] },
           { heading: 'Estimate', rows: [
-            ['Fabricated & installed countertops\n' + text('stoneLineSub'), text('stoneLineTotal')],
-            ...latestCalc.activeAddonLines.map(line => [
+            ['Fabricated & installed countertops\n' + stoneDescription, formatCurrency(customerStonePlusProtection)],
+            ...activeAddonLines.map(line => [
               `${line.name} (${line.qty} ${line.unit})`, formatCurrency(line.retail),
             ]),
             ['Pre-tax project subtotal', text('custPreTaxSubtotal')],
@@ -2425,21 +2425,19 @@
       // Update Customer View DOM
       document.getElementById('summaryJobMeta').textContent = jobNum ? `Costco Member Estimate • ${jobNum}` : 'Costco Member Estimate';
       document.getElementById('summaryProjectTitle').textContent = projectName;
-      document.getElementById('summaryTierBadge').textContent = `${tier.shortName} • $${tier.retailSf}/SF`;
+      document.getElementById('summaryTierBadge').textContent = tier.shortName;
       document.getElementById('summaryColorName').textContent = `${color.name} (${color.thickness} ${color.brand.split(' (')[0]})`;
       document.getElementById('summarySfBreakdown').textContent = `${counterSf.toFixed(2)} SF Counters + ${splashSf.toFixed(2)} SF Splash`;
       document.getElementById('summaryTotalBillableSf').textContent = `${billableStoneSf.toFixed(2)} SF`;
-      document.getElementById('stoneLineSub').textContent = `${billableStoneSf.toFixed(2)} SF @ $${tier.retailSf}/SF${includeProtection ? ' (includes 10-Yr Protection Plan)' : ''}`;
-      document.getElementById('stoneLineTotal').textContent = formatCurrency(customerStonePlusProtection, 2);
+      document.getElementById('stoneLineSub').textContent = `${billableStoneSf.toFixed(2)} SF${includeProtection ? ' (includes 10-Yr Protection Plan)' : ''}`;
 
       const quoteAddonContainer = document.getElementById('quoteAddonLines');
       if (activeAddonLines.length === 0) {
         quoteAddonContainer.innerHTML = `<div class="text-xs text-slate-400 italic">No optional add-ons selected</div>`;
       } else {
         quoteAddonContainer.innerHTML = activeAddonLines.map(line => `
-          <div class="flex items-start justify-between gap-2 text-xs sm:text-sm">
-            <span class="text-slate-700">${escapeHtml(line.name)} <span class="text-slate-400">(${line.qty} ${line.unit})</span></span>
-            <span class="font-semibold text-slate-900 whitespace-nowrap">${formatCurrency(line.retail, 2)}</span>
+          <div class="text-xs text-slate-700 sm:text-sm">
+            ${escapeHtml(line.name)} <span class="text-slate-400">(${line.qty} ${line.unit})</span>
           </div>
         `).join('');
       }
@@ -2646,10 +2644,10 @@
         rep ? `Estimator: ${rep}` : null,
         `----------------------------------------`,
         `Surface: ${c.color.name} (${c.color.thickness} ${c.color.brand.split(' (')[0]})`,
-        `Tier: ${c.tier.name} ($${c.tier.retailSf}/SF)`,
+        `Tier: ${c.tier.name}`,
         `Area: ${c.counterSf.toFixed(2)} SF Counters + ${c.splashSf.toFixed(2)} SF Splash = ${c.billableStoneSf.toFixed(2)} SF`,
-        `Installed Countertops${c.includeProtection ? ' (incl. 10-Yr Protection Plan)' : ''}: ${formatCurrency(c.customerStonePlusProtection, 2)}`,
-        ...c.activeAddonLines.map(a => `${a.name} (${a.qty} ${a.unit}): ${formatCurrency(a.retail, 2)}`),
+        `Installed Countertops${c.includeProtection ? ' (incl. 10-Yr Protection Plan)' : ''}`,
+        ...c.activeAddonLines.map(a => `${a.name} (${a.qty} ${a.unit})`),
         `----------------------------------------`,
         `Pre-Tax Subtotal: ${formatCurrency(c.estimatorPreTaxSubtotal, 2)}`,
         `Hawaii GET (4.712%): ${formatCurrency(c.estimatorGetTax, 2)}`,

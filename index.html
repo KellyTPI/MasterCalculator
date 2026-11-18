@@ -6,6 +6,8 @@
   <title>Costco Hawaii Master Estimator & 80/20 Centah/ActionFlow Splitter | Top Priority Installation</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="assets/pdf-lib.min.js"></script>
+  <script defer src="assets/estimate-pdf.js"></script>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -58,7 +60,7 @@
         background: #ffffff !important;
         padding-bottom: 0 !important;
       }
-      header, #leftWorkspaceColumn, #savedJobsModal, #toastBanner, #mobileStickyBar, .no-print {
+      header, #leftWorkspaceColumn, #savedJobsModal, #savedEstimateViewer, #toastBanner, #mobileStickyBar, .no-print {
         display: none !important;
       }
       main {
@@ -105,7 +107,7 @@
         </button>
       </div>
 
-      <!-- Search & JSON Backup Controls -->
+      <!-- Search and backup controls -->
       <div class="p-4 bg-slate-50 border-b border-slate-200 space-y-3">
         <div class="flex flex-col sm:flex-row gap-2">
           <div class="relative flex-1">
@@ -126,7 +128,7 @@
         <!-- Export / Import JSON for Field iPad <-> Office PC Sync -->
         <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
           <span class="text-[11px] text-slate-500 font-medium">Transfer jobs between field iPads & office PCs:</span>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <button type="button" onclick="exportSavedJobsJson()"
               class="text-xs font-bold bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
               <span>⬇ Export Backup (.json)</span>
@@ -135,6 +137,11 @@
               <span>⬆ Import Backup (.json)</span>
               <input id="importJsonInput" type="file" accept=".json,application/json" onchange="importSavedJobsJson(event)" class="hidden" />
             </label>
+            <button id="openEstimatePdfButton" type="button" onclick="document.getElementById('estimatePdfInput').click()"
+              class="bg-white hover:bg-slate-100 text-costcoNavy border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-50">
+              Open Estimate PDF
+            </button>
+            <input id="estimatePdfInput" type="file" accept=".pdf,application/pdf" onchange="openEstimatePdf(event)" hidden />
           </div>
         </div>
       </div>
@@ -145,6 +152,21 @@
       </div>
     </div>
   </div>
+
+  <dialog id="savedEstimateViewer" aria-labelledby="savedEstimateViewerTitle" class="m-auto max-h-[90vh] w-11/12 max-w-2xl overflow-y-auto rounded-2xl bg-white p-0 shadow-2xl backdrop:bg-slate-950/60">
+    <div class="flex items-start justify-between gap-4 bg-costcoDark px-5 py-4 text-white">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold text-blue-200">Saved Estimate</p>
+        <h2 id="savedEstimateViewerTitle" class="break-words text-lg font-extrabold"></h2>
+      </div>
+      <form method="dialog">
+        <button type="submit" autofocus class="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-100 hover:bg-slate-700">
+          Close
+        </button>
+      </form>
+    </div>
+    <div id="savedEstimateViewerDetails" class="space-y-5 p-5 text-sm text-slate-900"></div>
+  </dialog>
 
   <!-- Top Sticky Header -->
   <header class="sticky top-0 z-40 bg-costcoDark text-white shadow-md border-b border-slate-800">
@@ -604,10 +626,10 @@
               </div>
             </div>
 
-            <!-- Copy Customer Quote & Print/PDF Buttons -->
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 no-print">
+            <!-- Quote and editable work copy -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 no-print">
               <button type="button" onclick="copyQuoteToClipboard()"
-                class="sm:col-span-8 bg-costcoNavy hover:bg-costcoDark active:scale-[0.99] text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+                class="bg-costcoNavy hover:bg-costcoDark active:scale-[0.99] text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -615,8 +637,12 @@
                 <span>Copy Customer Quote</span>
               </button>
               <button type="button" onclick="window.print()"
-                class="sm:col-span-4 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-sm py-3.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
+                class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-sm py-3.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
                 <span>🖨 Print / PDF</span>
+              </button>
+              <button id="saveEditablePdfButton" type="button" onclick="saveEditableEstimatePdf()"
+                class="bg-blue-50 hover:bg-blue-100 text-costcoNavy border border-blue-200 font-bold text-sm py-3.5 px-3 rounded-xl transition disabled:opacity-50">
+                Save Editable PDF
               </button>
             </div>
           </div>
@@ -1365,6 +1391,12 @@
       const job = savedJobs.find(j => j.id === jobId);
       if (!job) return;
 
+      applyEstimateSnapshot(job);
+      closeSavedJobsModal();
+      showToast(`Loaded "${job.projectName}"`);
+    }
+
+    function applyEstimateSnapshot(job) {
       state.currentJobId = job.id;
       state.addonRateMode = job.addonRateMode || 'target';
       state.selectedTierId = TIER_CATALOG[job.selectedTierId] ? job.selectedTierId : 'tier2';
@@ -1406,8 +1438,6 @@
       renderAddons();
       recalculate();
       updateSavedCountsUI();
-      closeSavedJobsModal();
-      showToast(`Loaded "${job.projectName}"`);
     }
 
     function duplicateSavedJob(jobId) {
@@ -1438,6 +1468,62 @@
 
     function closeSavedJobsModal() {
       document.getElementById('savedJobsModal').classList.add('hidden');
+    }
+
+    function savedPieceDetails(pieces, depthField) {
+      if (!Array.isArray(pieces)) return [];
+      return pieces.filter(Boolean).map(piece => [
+        piece.name || 'Unnamed piece',
+        `${parseFloat(piece.length) || 0} × ${parseFloat(piece[depthField]) || 0} in`
+      ]);
+    }
+
+    function openSavedEstimateViewer(job) {
+      const cache = job.summaryCache || {};
+      const savedAt = new Date(job.savedAt || '');
+      const tier = TIER_CATALOG[job.selectedTierId];
+      const color = tier?.colors?.[job.selectedColorIndex || 0];
+      const material = [cache.tierShort || tier?.shortName, cache.colorName || color?.name].filter(Boolean).join(' • ');
+      const billableArea = Number(cache.billableSf);
+      const savedTotal = Number(cache.finalTotalWithTax);
+      const details = [
+        ['Job #', job.jobOrderNumber],
+        ['Customer phone / email', job.customerContact],
+        ['Estimator', job.repName],
+        ['Saved', Number.isFinite(savedAt.getTime()) ? savedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : ''],
+        ['Material', material],
+        ['Billable area', cache.billableSf != null && Number.isFinite(billableArea) ? `${billableArea.toFixed(2)} SF` : ''],
+        ['Saved total (with tax)', cache.finalTotalWithTax != null && Number.isFinite(savedTotal) ? formatCurrency(savedTotal) : ''],
+        ['Custom scope', job.customScopeDesc]
+      ].filter(([, value]) => value != null && value !== '');
+
+      const addons = ADDON_GROUPS.flatMap(group => group.items)
+        .filter(item => !(item.nonDektonOnly && job.selectedTierId === 'tier4') && Number(job.addonQuantities?.[item.id]) > 0)
+        .map(item => [item.name, `${job.addonQuantities[item.id]} ${item.unit}`]);
+      const sections = [
+        ['Estimate details', details],
+        ['Countertop pieces', savedPieceDetails(job.counterPieces, 'width')],
+        ['Backsplash pieces', savedPieceDetails(job.splashPieces, 'height')],
+        ['Add-ons', addons]
+      ].filter(([, rows]) => rows.length);
+
+      document.getElementById('savedEstimateViewerTitle').textContent = job.projectName || 'Untitled Estimate';
+      document.getElementById('savedEstimateViewerDetails').innerHTML = sections.length
+        ? sections.map(([heading, rows]) => `
+          <section>
+            <h3 class="mb-2 font-extrabold">${escapeHtml(heading)}</h3>
+            <dl class="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-slate-50">
+              ${rows.map(([label, value]) => `
+                <div class="grid grid-cols-2 gap-3 px-3 py-2">
+                  <dt class="break-words text-slate-600">${escapeHtml(label)}</dt>
+                  <dd class="break-words font-semibold">${escapeHtml(value)}</dd>
+                </div>
+              `).join('')}
+            </dl>
+          </section>
+        `).join('')
+        : '<p class="text-slate-600">This estimate has no saved details.</p>';
+      document.getElementById('savedEstimateViewer').showModal();
     }
 
     function renderSavedJobsList() {
@@ -1476,7 +1562,7 @@
         const marginClass = marginPct >= 39.95 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200';
 
         return `
-          <div class="p-4 rounded-2xl border transition ${isCurrent ? 'border-costcoNavy bg-blue-50/40 shadow-xs' : 'border-slate-200 bg-white hover:border-slate-300'}">
+          <div data-saved-job-card class="p-4 rounded-2xl border transition ${isCurrent ? 'border-costcoNavy bg-blue-50/40 shadow-xs' : 'border-slate-200 bg-white hover:border-slate-300'}">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -1501,16 +1587,22 @@
             </div>
 
             <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-              <button type="button" onclick="loadJobById('${job.id}')"
-                class="bg-costcoNavy hover:bg-costcoDark text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition">
-                Load Estimate
-              </button>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button type="button" data-job-action="view"
+                  class="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-costcoNavy hover:bg-slate-50">
+                  View Estimate
+                </button>
+                <button type="button" data-job-action="load"
+                  class="bg-costcoNavy hover:bg-costcoDark text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition">
+                  Load Estimate
+                </button>
+              </div>
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="duplicateSavedJob('${job.id}')"
+                <button type="button" data-job-action="duplicate"
                   class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition">
                   Duplicate
                 </button>
-                <button type="button" onclick="deleteSavedJob('${job.id}')"
+                <button type="button" data-job-action="delete"
                   class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold px-3 py-2 rounded-xl transition">
                   Delete
                 </button>
@@ -1519,6 +1611,28 @@
           </div>
         `;
       }).join('');
+
+      container.querySelectorAll('[data-saved-job-card]').forEach((card, index) => {
+        const job = filtered[index];
+        card.querySelector('[data-job-action="view"]').onclick = () => openSavedEstimateViewer(job);
+        card.querySelector('[data-job-action="load"]').onclick = () => loadJobById(job.id);
+        card.querySelector('[data-job-action="duplicate"]').onclick = () => duplicateSavedJob(job.id);
+        card.querySelector('[data-job-action="delete"]').onclick = () => deleteSavedJob(job.id);
+      });
+    }
+
+    function downloadFile(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      try {
+        a.click();
+      } finally {
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
     }
 
     function exportSavedJobsJson() {
@@ -1528,16 +1642,124 @@
         jobs: savedJobs
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const stamp = new Date().toISOString().slice(0, 10);
-      a.href = url;
-      a.download = `TPI-Costco-Hawaii-Jobs-${stamp}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const stamp = payload.exportedAt.slice(0, 10);
+      downloadFile(blob, `TPI-Costco-Hawaii-Jobs-${stamp}.json`);
       showToast(`Exported ${savedJobs.length} saved jobs to JSON backup`);
+    }
+
+    function validateEditableEstimate(job) {
+      const textFields = ['projectName', 'jobOrderNumber', 'customerContact', 'repName', 'customScopeDesc'];
+      const numberFields = ['shopCardRate', 'customScopeRetail', 'customScopeCogs', 'extraDirectTpiPreTax', 'extraDirectTpiCogs'];
+      const flagFields = ['shopCardOnFullBase', 'includeProtection'];
+      const validFields = job && textFields.every(key => typeof job[key] === 'string') &&
+        numberFields.every(key => Number.isFinite(job[key])) &&
+        flagFields.every(key => typeof job[key] === 'boolean') &&
+        (job.manualTotalWithTax === null || Number.isFinite(job.manualTotalWithTax)) &&
+        ['target', 'live'].includes(job.addonRateMode);
+
+      if (!validFields) throw new Error('The editable estimate is missing valid job details.');
+      const tier = Object.hasOwn(TIER_CATALOG, job.selectedTierId) && TIER_CATALOG[job.selectedTierId];
+      if (!tier || !Number.isInteger(job.selectedColorIndex) || !tier.colors[job.selectedColorIndex]) {
+        throw new Error('The saved material is unavailable in this calculator version.');
+      }
+
+      const validPieces = (pieces, depthField) => Array.isArray(pieces) && pieces.every(piece =>
+        piece && typeof piece.name === 'string' && Number.isFinite(piece.length) && Number.isFinite(piece[depthField])
+      );
+      if (!validPieces(job.counterPieces, 'width') || !validPieces(job.splashPieces, 'height')) {
+        throw new Error('The editable estimate contains invalid measurements.');
+      }
+      const addons = job.addonQuantities;
+      if (!addons || typeof addons !== 'object' || Array.isArray(addons) || !Object.values(addons).every(Number.isFinite)) {
+        throw new Error('The editable estimate contains invalid add-on quantities.');
+      }
+    }
+
+    function editablePdfQuote(job) {
+      const text = id => document.getElementById(id).textContent;
+      return {
+        projectName: job.projectName,
+        jobOrderNumber: job.jobOrderNumber,
+        logo: document.querySelector('#quoteCardLogo svg'),
+        sections: [
+          { heading: 'Material & measurements', rows: [
+            ['Selected surface', text('summaryColorName')],
+            ['Tier & installed rate', text('summaryTierBadge')],
+            ['Measured area', text('summarySfBreakdown')],
+            ['Billable area', text('summaryTotalBillableSf')],
+          ] },
+          { heading: 'Estimate', rows: [
+            ['Fabricated & installed countertops\n' + text('stoneLineSub'), text('stoneLineTotal')],
+            ...latestCalc.activeAddonLines.map(line => [
+              `${line.name} (${line.qty} ${line.unit})`, formatCurrency(line.retail),
+            ]),
+            ['Pre-tax project subtotal', text('custPreTaxSubtotal')],
+            ['Hawaii GET (4.712%)', text('custGetTax')],
+            ['Final quote total (with tax)', text('custFinalTotalWithTax'), true],
+          ] },
+          { heading: 'Member payment schedule (80/20 split)', rows: [
+            ['Due at Costco register (80% incl. GET)', text('custPayCostco80')],
+            ['Due to Top Priority Installation at completion (20% incl. GET)', text('custPayTpi20')],
+          ] },
+          { heading: 'Member benefit', rows: [
+            [text('custShopCardLabel'), text('shopCardRebateDisplay')],
+            ['Net effective cost after Shop Card', text('netEffectiveCostDisplay')],
+          ] },
+        ],
+      };
+    }
+
+    async function saveEditableEstimatePdf() {
+      if (!window.TpiEstimatePdf) {
+        showToast('Open the live calculator or its complete downloaded folder to use editable PDFs.');
+        return;
+      }
+      const button = document.getElementById('saveEditablePdfButton');
+      button.disabled = true;
+      try {
+        recalculate();
+        const job = captureCurrentJobSnapshot();
+        validateEditableEstimate(job);
+        const bytes = await window.TpiEstimatePdf.create(job, editablePdfQuote(job));
+        const jobLabel = (job.jobOrderNumber || job.projectName).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').slice(0, 72);
+        const timestamp = job.savedAt.replace(/[:.]/g, '-');
+        downloadFile(new Blob([bytes], { type: 'application/pdf' }), `TPI-${jobLabel}-${timestamp}-editable.pdf`);
+        showToast('Editable PDF download requested');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : 'Could not create the editable PDF.');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function openEstimatePdf(event) {
+      const input = event.currentTarget;
+      const file = input.files[0];
+      input.value = '';
+      if (!file) return;
+      if (!window.TpiEstimatePdf) {
+        showToast('Open the live calculator or its complete downloaded folder to use editable PDFs.');
+        return;
+      }
+      const button = document.getElementById('openEstimatePdfButton');
+      button.disabled = true;
+      try {
+        const job = await window.TpiEstimatePdf.read(file);
+        validateEditableEstimate(job);
+        applyEstimateSnapshot({
+          ...job,
+          id: null,
+          counterPieces: job.counterPieces.map(({ name, length, width }) => ({ id: uid(), name, length, width })),
+          splashPieces: job.splashPieces.map(({ name, length, height }) => ({ id: uid(), name, length, height })),
+        });
+        setViewMode('customer');
+        closeSavedJobsModal();
+        showToast(`Opened "${job.projectName}" as a draft`);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : 'Could not open the editable PDF.');
+      } finally {
+        button.disabled = false;
+      }
     }
 
     function importSavedJobsJson(event) {

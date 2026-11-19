@@ -88,3 +88,98 @@ test('built-in summaries follow their inputs and legacy sample repair preserves 
   const realJob = { ...legacy, id: 'saved-member-job' };
   assert.equal(app.refreshLegacySample(realJob), realJob);
 });
+
+function programJob(overrides = {}) {
+  return {
+    ...counterJob(48, 24), pricingVersion: '2026-11', selectedTierId: 'tier1',
+    addonRateMode: 'live', ...overrides
+  };
+}
+
+test('new rates, waterfall measurements and yield leave historical jobs at their original prices', () => {
+  for (const [idx, rate] of [130, 150, 175, 205].entries()) {
+    const job = programJob({
+      selectedTierId: 'tier' + (idx + 1), addonQuantities: { waterfall: 1 },
+      counterPieces: [{ name: 'Leg', length: 48, width: 24, qty: 2 }],
+      splashPieces: [{ name: 'Splash', length: 36, height: 4, qty: 3 }],
+      usableYieldPct: 50, shopLaborBase: 45
+    });
+    const c = app.calculateEstimate(job);
+    assert.equal(c.billableStoneSf, 19);
+    assert.equal(c.netStonePlusWfSf, 19);
+    assert.equal(c.grossYieldSf, 38);
+    assert.equal(c.customerStonePlusProtection, 19 * rate);
+    assert.equal(c.shopLaborCogs, 19 * (idx === 3 ? 75 : 45));
+    assert.equal(c.activeAddonLines[0].cogs, 900);
+  }
+  const original = app.calculateEstimate(sample);
+  assert.equal(original.netStonePlusWfSf, original.billableStoneSf + 7);
+  assert.equal(original.estimatorTotalWithTax, 20141.46);
+  assert.equal(original.totalJobCogs, 8712.62);
+  const empty = app.calculateEstimate(programJob({ counterPieces: [], includeProtection: true }));
+  assert.equal(empty.estimatorTotalWithTax, 0);
+  assert.equal(empty.totalJobCogs, 0);
+  assert.equal(empty.shopGrossProfit, 0);
+});
+
+test('cutouts, custom unit costs, discounts, GET, card funding and commission reconcile', () => {
+  const job = programJob({
+    addonQuantities: { cooktopCutout: 2, undermountSink: 1 }, discountMode: 'percent',
+    discountValue: 10, discountReason: 'Member promotion', shopCardRate: 0.15,
+    salesCommissionPct: 5, extraDirectTpiPreTax: 100,
+    customLines: [{ description: 'Shelf', qty: 3, retail: 50, cogs: 20 },
+      { description: '', qty: 2, retail: 0, cogs: 9 }]
+  });
+  const c = app.calculateEstimate(job);
+  assert.equal(c.grossSubtotal, 1565);
+  assert.equal(c.discountAmount, 156.50);
+  assert.equal(c.estimatorPreTaxSubtotal, 1408.50);
+  assert.equal(c.estimatorGetTax, 66.37);
+  assert.equal(c.estimatorTotalWithTax, 1474.87);
+  assert.equal(c.memberShopCardRebate, 211.28);
+  assert.equal(c.commission, 75.43);
+  assert.equal(c.totalJobCogs, 782.80); // 10 gross SF × 16.98, 8 SF × 45, 175 cutouts, 78 custom.
+  assert.equal(cents(c.shopGrossProfit), cents(c.totalBizNetRevenuePreTax - c.totalJobCogs - c.commission));
+  assert.equal(c.activeAddonLines.length, 3);
+  assert.equal(c.allCogsLines.length, 4);
+  assert.equal(app.calculateEstimate(programJob({ addonQuantities: { cooktopCutout: 1 } })).activeAddonLines[0].retail, 0);
+  const manual = app.calculateEstimate({ ...job, manualTotalWithTax: 1047.12 });
+  assert.equal(manual.estimatorTotalWithTax, 1474.87);
+  assert.equal(manual.commission, 55);
+  assert.equal(manual.baseSubTotalPreTax, 1000);
+  assert.equal(cents(manual.totalPaidToCostco + manual.totalBillActionFlow), 115183);
+  for (const [mode, val] of [['percent', 110], ['fixed', 3000]]) {
+    const discounted = app.calculateEstimate({ ...job, discountMode: mode, discountValue: val });
+    assert.equal(discounted.estimatorTotalWithTax, 0);
+    assert.equal(discounted.memberShopCardRebate, 0);
+    assert.equal(discounted.commission, 5);
+  }
+});
+
+test('invalid piece quantities, yield and custom costs block a quote', () => {
+  for (const qty of [-1, 0.5, NaN]) {
+    assert.equal(app.calculateEstimate(programJob({ counterPieces: [{ length: 48, width: 24, qty }] })), null);
+  }
+  assert.equal(app.calculateEstimate(programJob({ usableYieldPct: 0 })), null);
+  assert.equal(app.calculateEstimate(programJob({ customLines: [{ description: '', qty: 1, retail: 0, cogs: -5 }] })), null);
+});
+
+test('single-estimate JSON import translates uploaded material, add-on and piece identifiers', () => {
+  const incoming = {
+    ...sample, version: 'tpi-costco-hawaii-v6', selectedColorId: 's-blanco-zeus', addonQtys: { plumb_reconnect_kitchen: 1 },
+    counterPieces: [{ label: 'Island', lengthIn: 48, widthIn: 24, qty: 2 }], splashPieces: [],
+    edgeProfile: 'E8-Ogee', afJobNumber: 'AF-12', quoteDate: '2026-11-18', customLines: [],
+    discountMode: 'fixed', discountValue: 5, shopLaborBase: 45
+  };
+  const converted = app.readEstimateFile(incoming);
+  const c = app.calculateEstimate(converted);
+  assert.equal(c.color.name, 'Blanco Zeus');
+  assert.equal(c.counterSf, 16);
+  assert.equal(c.activeAddonLines[0].cogs, 1000);
+  assert.equal(c.activeAddonLines[0].retail, 1400);
+  assert.equal(c.discountAmount, 5);
+  assert.equal(c.afJobNumber, 'AF-12');
+  assert.equal(app.readEstimateFile({ version: 'tpi-estimate-1', job: converted }), converted);
+  assert.throws(() => app.readEstimateFile({ ...incoming, selectedColorId: 'unknown' }));
+  assert.throws(() => app.readEstimateFile({ ...incoming, addonQtys: { unknown: 2 } }));
+});

@@ -84,9 +84,9 @@ test('built-in summaries follow their inputs and legacy sample repair preserves 
   assert.equal(sample.summaryCache.finalTotalWithTax, 20141.46);
   assert.equal(app.formatMargin(caliwag.summaryCache.netMarginPct), '51.7%');
   const legacy = { ...sample, summaryCache: { billableSf: 90.67, finalTotalWithTax: 20141.35, netMarginPct: 44.8 } };
-  assert.equal(app.refreshLegacySample(legacy).summaryCache.finalTotalWithTax, 20141.46);
+  assert.equal(app.migrateSavedJob(legacy).summaryCache.finalTotalWithTax, 20141.46);
   const realJob = { ...legacy, id: 'saved-member-job' };
-  assert.equal(app.refreshLegacySample(realJob), realJob);
+  assert.equal(app.migrateSavedJob(realJob), realJob);
 });
 
 function programJob(overrides = {}) {
@@ -122,11 +122,11 @@ test('new rates, waterfall measurements and yield leave historical jobs at their
   assert.equal(empty.shopGrossProfit, 0);
 });
 
-test('cutouts, custom unit costs, discounts, GET, card funding and commission reconcile', () => {
+test('cutouts, custom unit costs, discounts, GET and card funding reconcile', () => {
   const job = programJob({
     addonQuantities: { cooktopCutout: 2, undermountSink: 1 }, discountMode: 'percent',
     discountValue: 10, discountReason: 'Member promotion', shopCardRate: 0.15,
-    salesCommissionPct: 5, extraDirectTpiPreTax: 100,
+    extraDirectTpiPreTax: 100,
     customLines: [{ description: 'Shelf', qty: 3, retail: 50, cogs: 20 },
       { description: '', qty: 2, retail: 0, cogs: 9 }]
   });
@@ -137,22 +137,21 @@ test('cutouts, custom unit costs, discounts, GET, card funding and commission re
   assert.equal(c.estimatorGetTax, 66.37);
   assert.equal(c.estimatorTotalWithTax, 1474.87);
   assert.equal(c.memberShopCardRebate, 211.28);
-  assert.equal(c.commission, 75.43);
   assert.equal(c.totalJobCogs, 782.80); // 10 gross SF × 16.98, 8 SF × 45, 175 cutouts, 78 custom.
-  assert.equal(cents(c.shopGrossProfit), cents(c.totalBizNetRevenuePreTax - c.totalJobCogs - c.commission));
+  assert.equal(cents(c.shopGrossProfit), cents(c.totalBizNetRevenuePreTax - c.totalJobCogs));
   assert.equal(c.activeAddonLines.length, 3);
   assert.equal(c.allCogsLines.length, 4);
   assert.equal(app.calculateEstimate(programJob({ addonQuantities: { cooktopCutout: 1 } })).activeAddonLines[0].retail, 0);
   const manual = app.calculateEstimate({ ...job, manualTotalWithTax: 1047.12 });
   assert.equal(manual.estimatorTotalWithTax, 1474.87);
-  assert.equal(manual.commission, 55);
+  assert.equal(manual.shopGrossProfit, 85.33); // $1,100 revenue less $231.87 in Costco deductions and $782.80 in costs.
   assert.equal(manual.baseSubTotalPreTax, 1000);
   assert.equal(cents(manual.totalPaidToCostco + manual.totalBillActionFlow), 115183);
   for (const [mode, val] of [['percent', 110], ['fixed', 3000]]) {
     const discounted = app.calculateEstimate({ ...job, discountMode: mode, discountValue: val });
     assert.equal(discounted.estimatorTotalWithTax, 0);
     assert.equal(discounted.memberShopCardRebate, 0);
-    assert.equal(discounted.commission, 5);
+    assert.equal(discounted.shopGrossProfit, -682.80);
   }
 });
 
@@ -182,4 +181,17 @@ test('single-estimate JSON import translates uploaded material, add-on and piece
   assert.equal(app.readEstimateFile({ version: 'tpi-estimate-1', job: converted }), converted);
   assert.throws(() => app.readEstimateFile({ ...incoming, selectedColorId: 'unknown' }));
   assert.throws(() => app.readEstimateFile({ ...incoming, addonQtys: { unknown: 2 } }));
+});
+
+test('old review records use current job margin and keep their saved prices', () => {
+  const job = { ...caliwag, salesCommissionPct: 5, extraDirectTpiPreTax: 100 };
+  const c = app.calculateEstimate(job);
+  assert.equal(cents(c.shopGrossProfit), cents(c.totalBizNetRevenuePreTax - c.totalJobCogs));
+  const historicalCache = { ...job.summaryCache, netMarginPct: 32.1 };
+  const migrated = app.migrateSavedJob({ ...job, summaryCache: historicalCache });
+  assert.ok(!Object.hasOwn(migrated, 'salesCommissionPct'));
+  assert.equal(migrated.summaryCache.finalTotalWithTax, historicalCache.finalTotalWithTax);
+  assert.equal(migrated.summaryCache.netMarginPct, c.trueNetMarginPct);
+  assert.equal(app.migrateSavedJob(migrated), migrated);
+  assert.equal(migrated.manualTotalWithTax, job.manualTotalWithTax);
 });

@@ -897,7 +897,6 @@
                   <span id="splitTotalNetBizRev" class="font-extrabold text-white">—</span>
                 </div>
                 <div class="flex justify-between text-slate-200"><span>Net cash including direct TPI GET</span><strong id="splitCashWithTax"></strong></div>
-                <div id="splitCommission" class="flex justify-between text-slate-200"></div>
                 <div class="flex justify-between text-slate-300">
                   <span>Total Job COGS (Material + Labor + Subs + Plan):</span>
                   <span id="splitTotalJobCogs" class="font-bold text-amber-300">—</span>
@@ -946,16 +945,13 @@
           </div>
 
           <div class="p-5 space-y-4 text-xs">
-            <div class="grid sm:grid-cols-3 gap-3 text-slate-200">
+            <div class="grid sm:grid-cols-2 gap-3 text-slate-200">
               <label class="estimate-label">Base labor per SF
                 <select class="estimate-input" id="shopLaborBase" onchange="recalculate()"><option value="45">$45</option><option value="50">$50</option></select>
                 <small>Dekton adds $30/SF</small>
               </label>
               <label class="estimate-label">Usable slab yield (%)
                 <input class="estimate-input" type="number" min="40" max="100" step="any" id="usableYieldPct" required value="80" oninput="recalculate()">
-              </label>
-              <label class="estimate-label">Sales commission (% of pre-tax sale)
-                <input class="estimate-input" type="number" min="0" max="25" step="any" id="salesCommissionPct" required value="0" oninput="recalculate()">
               </label>
             </div>
             <!-- Slab Yield & Boneyard Calculator -->
@@ -1027,7 +1023,6 @@
                 <span>Net Business Revenue (Pre-Tax):</span>
                 <span id="mgrNetBizRev">—</span>
               </div>
-              <div id="managerCommission" class="text-amber-200"></div>
             </div>
 
             <!-- Bottom Profit & Net Margin Box -->
@@ -1331,18 +1326,27 @@
       ].map(job => ({ ...job, summaryCache: summarizeEstimate(calculateEstimate(job)) }));
     }
 
-    // Original bundled examples had hand-entered, rounded cache values. Saved user
-    // quotes keep their historical summaries until the user loads and saves them.
-    function refreshLegacySample(job) {
+    function migrateSavedJob(job) {
+      // Strip the retired input before old review files are stored or exported again.
+      const retiredRate = job?.salesCommissionPct;
+      if (job && Object.hasOwn(job, 'salesCommissionPct')) {
+        job = { ...job };
+        delete job.salesCommissionPct;
+      }
+
+      // Only the original bundled examples had hand-entered totals.
       const cache = job?.summaryCache;
       const oldKitchen = job?.id === 'job_sample_80sf' && cache?.billableSf === 90.67 &&
         cache.finalTotalWithTax === 20141.35 && cache.netMarginPct === 44.8;
       const oldCaliwag = job?.id === 'job_caliwag_split' && cache?.billableSf === 85.17 &&
         cache.finalTotalWithTax === 29002.34 && cache.netMarginPct === 45.1;
-      if (!oldKitchen && !oldCaliwag) return job;
+      if (!oldKitchen && !oldCaliwag && !retiredRate) return job;
       try {
         validateEditableEstimate(job);
-        return { ...job, summaryCache: summarizeEstimate(calculateEstimate(job)) };
+        const summary = summarizeEstimate(calculateEstimate(job));
+        // Preserve the recorded customer figures when updating an old job margin.
+        return { ...job, summaryCache: oldKitchen || oldCaliwag || !cache
+          ? summary : { ...cache, netMarginPct: summary.netMarginPct } };
       } catch {
         return job;
       }
@@ -1354,8 +1358,9 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            savedJobs = parsed.map(refreshLegacySample);
-            updateSavedCountsUI();
+            savedJobs = parsed.map(migrateSavedJob);
+            if (savedJobs.some((job, i) => job !== parsed[i])) persistSavedJobs();
+            else updateSavedCountsUI();
             return;
           }
         }
@@ -1423,7 +1428,6 @@
         discountReason: document.getElementById('discountReason').value.trim(),
         shopLaborBase: Number(document.getElementById('shopLaborBase').value),
         usableYieldPct: document.getElementById('usableYieldPct').valueAsNumber,
-        salesCommissionPct: document.getElementById('salesCommissionPct').valueAsNumber,
         customLines: state.customLines,
         addonRateMode: state.addonRateMode,
         selectedTierId: state.selectedTierId,
@@ -1542,7 +1546,6 @@
       document.getElementById('discountReason').value = job.discountReason || '';
       document.getElementById('shopLaborBase').value = job.shopLaborBase ?? 50;
       document.getElementById('usableYieldPct').value = job.usableYieldPct ?? 80;
-      document.getElementById('salesCommissionPct').value = job.salesCommissionPct ?? 0;
       document.getElementById('extraDirectTpiPreTax').value = job.extraDirectTpiPreTax || 0;
       document.getElementById('extraDirectTpiCogs').value = job.extraDirectTpiCogs || 0;
 
@@ -1968,7 +1971,7 @@
             return;
           }
           let mergedCount = 0;
-          incoming.map(refreshLegacySample).forEach(job => {
+          incoming.map(migrateSavedJob).forEach(job => {
             if (!job || !job.id) return;
             const idx = savedJobs.findIndex(existing => existing.id === job.id);
             if (idx >= 0) {
@@ -2625,7 +2628,7 @@
     function validJobOptions(job) {
       const between = (n, low, high) => Number.isFinite(n) && n >= low && n <= high;
       return [45, 50].includes(job.shopLaborBase ?? 50) &&
-        between(job.usableYieldPct ?? 80, 40, 100) && between(job.salesCommissionPct ?? 0, 0, 25) &&
+        between(job.usableYieldPct ?? 80, 40, 100) &&
         ['none', 'percent', 'fixed'].includes(job.discountMode ?? 'none') &&
         (job.discountMode === 'none' || between(job.discountValue ?? 0, 0, Infinity)) &&
         customLinesFor(job).every(line => line && typeof line.description === 'string' &&
@@ -2736,15 +2739,14 @@
       const shopLaborCogs = roundMoney(billableStoneSf * laborRate);
       const subcontractorCosts = allCogsLines.reduce((sum, line) => sum + line.cogs, 0);
       const totalJobCogs = roundMoney(materialCogs + shopLaborCogs + protectionCogs + subcontractorCosts);
-      const commission = roundMoney((baseSubTotalPreTax + extraDirectPreTax) * (job.salesCommissionPct || 0) / 100);
-      const shopGrossProfit = roundMoney(totalBizNetRevenuePreTax - totalJobCogs - commission);
+      const shopGrossProfit = roundMoney(totalBizNetRevenuePreTax - totalJobCogs);
       const revenueCents = Math.round(totalBizNetRevenuePreTax * 100);
       const profitCents = Math.round(shopGrossProfit * 100);
       const trueNetMarginPct = revenueCents > 0 ? profitCents * 100 / revenueCents : 0;
 
       return {
         tier, color, counterSf, splashSf, billableStoneSf, includeProtection, protectionCogs,
-        grossSubtotal, discountAmount, discountLabel, commission, laborRate,
+        grossSubtotal, discountAmount, discountLabel, laborRate,
         customerStonePlusProtection, activeAddonLines, allCogsLines, estimatorPreTaxSubtotal,
         estimatorGetTax, estimatorTotalWithTax, custPayCostco80, custPayTpi20, memberShopCardRebate,
         memberNetEffectiveCost, finalQuoteWithTax, baseSubTotalPreTax, totalPaidToCostco,
@@ -2792,9 +2794,6 @@
       customerDiscount.textContent = discountText;
       document.getElementById('managerDiscount').textContent = discountText && job.manualTotalWithTax == null
         ? 'Before discount: ' + formatCurrency(latestCalc.grossSubtotal) + ' · ' + discountText : '';
-      const commissionText = latestCalc.commission ? 'Sales commission (' + job.salesCommissionPct + '%): −' + formatCurrency(latestCalc.commission) : '';
-      document.getElementById('managerCommission').textContent = commissionText;
-      document.getElementById('splitCommission').textContent = commissionText;
       document.getElementById('mgrYieldBadge').textContent = job.usableYieldPct + '% yield';
       document.getElementById('splitCardFee').textContent = '−' + formatCurrency(cardMailingFee);
       document.getElementById('printContractTotal').textContent = formatCurrency(finalQuoteWithTax);
@@ -3030,7 +3029,6 @@
         `SECTION C — TOTAL REVENUE & PROFIT CHECK`,
         `Total Business Net Revenue (Pre-Tax): ${formatCurrency(c.totalBizNetRevenuePreTax, 2)}`,
         `Net cash including direct TPI GET: ${formatCurrency(c.netCashPayoutFromCostco + c.totalBillActionFlow)}`,
-        c.commission ? `Sales commission: -${formatCurrency(c.commission)}` : null,
         `Total Job COGS: -${formatCurrency(c.totalJobCogs, 2)}`,
         `Job profit after entered costs: ${formatCurrency(c.shopGrossProfit, 2)} (${formatMargin(c.trueNetMarginPct)} margin)`
       ].filter(line => line !== null);

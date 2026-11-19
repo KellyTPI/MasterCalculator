@@ -17,5 +17,5 @@ New estimates start at zero square feet. The November pricing schedule uses inst
 
 - **Field Quote** supports piece quantities, edge profiles, included cutouts, custom lines and pre-tax discounts. **Print / PDF** produces the member quote with the signature block.
 - **80/20 Split** includes the Centah deposit, ActionFlow balance and direct TPI charges. **Print Office Record / PDF** includes the member quote, office settlement and manager costs.
-- **COGS Audit** lets the estimator set shop labor, usable slab yield and sales commission. Commission uses the office contract subtotal plus direct charges before GET.
+- **COGS Audit** lets the estimator set shop labor and usable slab yield. Job profit is pre-tax net business revenue less job costs.
 - **Saved Jobs** can save or open one estimate as JSON, including single-estimate files from the November standalone calculator. **Export Backup** and **Import Backup** transfer the whole saved-job list. Single-estimate JSON and editable PDFs are internal work copies.

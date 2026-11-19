@@ -195,3 +195,37 @@ test('old review records use current job margin and keep their saved prices', ()
   assert.equal(app.migrateSavedJob(migrated), migrated);
   assert.equal(migrated.manualTotalWithTax, job.manualTotalWithTax);
 });
+
+test('office amounts and add-on quantities reject unfinished or negative entries', () => {
+  for (const value of [-1, NaN, Infinity]) {
+    for (const field of ['extraDirectTpiPreTax', 'extraDirectTpiCogs', 'manualTotalWithTax']) {
+      const job = programJob({ [field]: value });
+      assert.equal(app.calculateEstimate(job), null);
+    }
+    const addon = programJob({ addonQuantities: { miterEdge: value } });
+    assert.equal(app.calculateEstimate(addon), null);
+    assert.throws(() => app.validateEditableEstimate(addon));
+  }
+  const zero = app.calculateEstimate(programJob({ manualTotalWithTax: 0 }));
+  assert.equal(zero.finalQuoteWithTax, 0);
+  const valid = app.calculateEstimate(programJob({
+    manualTotalWithTax: null, addonQuantities: { miterEdge: 2.75 }, extraDirectTpiPreTax: 12.34
+  }));
+  assert.equal(valid.activeAddonLines[0].qty, 2.75);
+  assert.equal(valid.extraDirectPreTax, 12.34);
+  assert.equal(valid.finalQuoteWithTax, valid.estimatorTotalWithTax);
+});
+
+test('previously saved negative direct costs can reopen as a draft for correction', () => {
+  const job = programJob({ extraDirectTpiCogs: -12.50 });
+  const draft = app.readEstimateFile({ version: 'tpi-estimate-1', job });
+  assert.equal(draft.extraDirectTpiCogs, -12.50);
+  assert.equal(app.calculateEstimate(draft), null);
+  assert.ok(app.calculateEstimate({ ...draft, extraDirectTpiCogs: 12.50 }));
+});
+
+test('amounts and measurements that overflow a payable total block the quote', () => {
+  assert.equal(app.calculateEstimate(programJob({ extraDirectTpiPreTax: 1e308 })), null);
+  assert.equal(app.calculateEstimate(counterJob(1e200, 1e200)), null);
+  assert.equal(app.calculateEstimate(programJob({ addonQuantities: { miterEdge: 1e300 } })), null);
+});

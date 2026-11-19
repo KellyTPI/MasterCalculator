@@ -60,17 +60,19 @@
     .estimate-label { display: block; font-size: .75rem; font-weight: 600; }
     .estimate-input { display: block; width: 100%; margin-top: .25rem; padding: .5rem .65rem; border: 1px solid #cbd5e1; border-radius: .5rem; background: white; color: #0f172a; font: inherit; }
     [hidden] { display: none !important; }
-    .invalid-measurements input:invalid { outline: 2px solid #b91c1c; }
+    .invalid-measurements input:is(:invalid, [aria-invalid="true"]) { outline: 2px solid #b91c1c; }
     #measurementWarning { display: none; }
     .invalid-measurements #measurementWarning { display: block; }
-    .invalid-measurements #customerPanel, .invalid-measurements #splitPanel,
-    .invalid-measurements #managerPanel, .invalid-measurements #mobileStickyBar { display: none !important; }
+    .invalid-measurements #mobileStickyBar { display: none !important; }
+    .invalid-measurements:not(.has-estimate-preview) :is(#customerPanel, #splitPanel, #managerPanel) :is(span, strong, h2, div)[id] { visibility: hidden; }
+    .addon-selected { background: #eff6ff; border-color: #bfdbfe; }
+    .addon-selected .miter-quantity-hint { display: none; }
     @media screen {
-      .editing-invalid-yield #managerPanel { display: block !important; }
       .editing-invalid-yield #measurementWarning { display: none; }
     }
     #counterPiecesList input:out-of-range, #splashPiecesList input:out-of-range { outline: 2px solid #b91c1c; }
     @media print {
+      .invalid-measurements :is(#customerPanel, #splitPanel, #managerPanel) { display: none !important; }
       body {
         background: #ffffff !important;
         padding-bottom: 0 !important;
@@ -388,6 +390,7 @@
                   ✕
                 </button>
               </div>
+              <small id="colorSearchHint" role="status" class="text-slate-600" hidden>No matching colors. Try a different name or clear the search.</small>
             </div>
 
             <div class="sm:col-span-7">
@@ -573,7 +576,7 @@
             </select>
           </label>
           <label id="discountValueField" class="estimate-label"><span id="discountValueLabel">Amount</span>
-            <input class="estimate-input" id="discountValue" type="number" min="0" step="any" oninput="recalculate()" />
+            <input class="estimate-input" id="discountValue" aria-label="Pre-tax discount" type="number" min="0" step="any" oninput="recalculate()" />
           </label>
           <label id="discountReasonField" class="estimate-label sm:col-span-2">Discount label on quote
             <input class="estimate-input" id="discountReason" type="text" placeholder="Promotional discount" oninput="recalculate()" />
@@ -585,10 +588,13 @@
 
     <!-- RIGHT COLUMN: Mode-Specific Output Panels (5 cols on desktop) -->
     <div id="rightWorkspaceColumn" class="lg:col-span-5 space-y-6">
-      <p id="measurementWarning" role="alert" class="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-900">
-        Check the highlighted estimate inputs before saving, printing, or sharing.
-      </p>
       <div class="lg:sticky lg:top-20 space-y-5">
+        <p id="measurementWarning" role="alert" class="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-900">
+          <span id="invalidEstimateMessage"></span>
+          <span id="previewNotice" class="no-print">Showing the last calculated figures.</span>
+          <button id="fixEstimateInput" class="no-print underline" type="button" onclick="focusInvalidEstimateInput()">Go to field</button>
+        </p>
+
 
         <!-- ===================================================================
              MODE 1: FIELD QUOTE (CUSTOMER VIEW)
@@ -776,8 +782,8 @@
 
               <div class="relative">
                 <span class="absolute left-3.5 top-2.5 text-slate-400 font-bold">$</span>
-                <input id="manualTotalOverrideInput" type="number" step="0.01" min="0"
-                  oninput="handleManualTotalInput(this.value)"
+                <input id="manualTotalOverrideInput" type="number" step="any" min="0" aria-label="Office contract total"
+                  oninput="handleManualTotalInput(this)" onblur="recalculate()"
                   class="w-full pl-7 pr-3.5 py-2 rounded-xl border border-slate-300 bg-white text-base font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
               </div>
 
@@ -864,13 +870,13 @@
                     </label>
                     <div class="relative w-28">
                       <span class="absolute left-2.5 top-1.5 text-slate-400 font-bold">$</span>
-                      <input id="extraDirectTpiPreTax" type="number" step="1" min="0" value="0" oninput="recalculate()"
+                      <input id="extraDirectTpiPreTax" aria-label="Extra direct TPI charges" type="number" step="any" min="0" value="0" oninput="recalculate()"
                         class="w-full pl-6 pr-2 py-1 rounded border border-slate-300 bg-white text-right font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
                     </div>
                   </div>
                   <div class="flex items-center justify-between gap-2 text-[11px] text-slate-500">
                     <label for="extraDirectTpiCogs">Extra Direct TPI Sub/COGS Cost ($):</label>
-                    <input id="extraDirectTpiCogs" type="number" step="1" min="0" value="0" oninput="recalculate()"
+                    <input id="extraDirectTpiCogs" aria-label="Extra direct TPI costs" type="number" step="any" min="0" value="0" oninput="recalculate()"
                       class="w-28 px-2 py-1 rounded border border-slate-300 bg-white text-right font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
                   </div>
                 </div>
@@ -955,8 +961,8 @@
                 <small>Dekton adds $30/SF</small>
               </label>
               <label class="estimate-label">Usable slab yield (%)
-                <input class="estimate-input" type="number" min="40" max="100" step="any" id="usableYieldPct" required value="80" aria-describedby="yieldEditHint" oninput="recalculate()">
-                <small id="yieldEditHint" class="text-amber-300" hidden>Enter 40% to 100%. The audit shows the last calculated figures until the entry is valid.</small>
+                <input class="estimate-input" type="number" min="40" max="100" step="any" id="usableYieldPct" aria-label="Usable slab yield" required value="80" aria-describedby="yieldEditHint" oninput="recalculate()">
+                <small id="yieldEditHint" class="text-amber-300" hidden>Enter 40% to 100%. Finish the entry to update the displayed figures.</small>
               </label>
             </div>
             <!-- Slab Yield & Boneyard Calculator -->
@@ -1418,7 +1424,21 @@
       return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
     }
 
+    // Browsers expose both an empty optional field and an unfinished number as "".
+    function readOptionalNumber(input) {
+      input.removeAttribute('aria-invalid');
+      return input.validity.badInput ? NaN : Number(input.value);
+    }
+
+    // Keep an unfinished draft identifiable if adding a row or switching views rebuilds its input.
+    function numberValueAttribute(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? `value="${number}"` : 'value="" aria-invalid="true"';
+    }
+
     function currentJobInputs() {
+      const discountMode = document.getElementById('discountMode').value;
+      const discountValue = readOptionalNumber(document.getElementById('discountValue'));
       return {
         projectName: document.getElementById('projectName').value.trim(),
         jobOrderNumber: document.getElementById('jobOrderNumber').value.trim(),
@@ -1428,8 +1448,8 @@
         quoteDate: document.getElementById('quoteDate').value,
         pricingVersion: state.pricingVersion,
         edgeProfile: document.getElementById('edgeProfileSelect').value,
-        discountMode: document.getElementById('discountMode').value,
-        discountValue: document.getElementById('discountValue').validity.badInput ? NaN : Number(document.getElementById('discountValue').value),
+        discountMode,
+        discountValue: discountMode === 'none' && !(discountValue >= 0) ? 0 : discountValue,
         discountReason: document.getElementById('discountReason').value.trim(),
         shopLaborBase: Number(document.getElementById('shopLaborBase').value),
         usableYieldPct: document.getElementById('usableYieldPct').valueAsNumber,
@@ -1443,9 +1463,10 @@
         includeProtection: document.getElementById('chkProtectionPlan').checked,
         counterPieces: state.counterPieces,
         splashPieces: state.splashPieces,
-        addonQuantities: state.addonQuantities,
-        extraDirectTpiPreTax: parseFloat(document.getElementById('extraDirectTpiPreTax').value) || 0,
-        extraDirectTpiCogs: parseFloat(document.getElementById('extraDirectTpiCogs').value) || 0
+        addonQuantities: state.selectedTierId === 'tier4' && !(state.addonQuantities.miterEdge >= 0)
+          ? { ...state.addonQuantities, miterEdge: 0 } : state.addonQuantities,
+        extraDirectTpiPreTax: readOptionalNumber(document.getElementById('extraDirectTpiPreTax')),
+        extraDirectTpiCogs: readOptionalNumber(document.getElementById('extraDirectTpiCogs'))
       };
     }
 
@@ -1470,10 +1491,25 @@
       };
     }
 
+    function invalidEstimateInput() {
+      return document.querySelector('main input:enabled:is(:invalid, [aria-invalid="true"])');
+    }
+
+    function focusInvalidEstimateInput() {
+      const input = invalidEstimateInput();
+      if (!input) return;
+      closeSavedJobsModal();
+      if ((input.closest('#managerPanel') && state.viewMode !== 'manager') || input.closest('#customLines [hidden]')) setViewMode('manager');
+      else if (input.closest('#splitPanel') && state.viewMode !== 'split') setViewMode('split');
+      const target = invalidEstimateInput();
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: 'center' });
+    }
+
     function canIssueQuote() {
       if (latestCalc) return true;
-      showToast('Check the highlighted estimate inputs before saving or sharing.');
-      document.querySelector('input:invalid')?.focus();
+      showToast(document.getElementById('invalidEstimateMessage').textContent);
+      focusInvalidEstimateInput();
       return false;
     }
 
@@ -1514,6 +1550,7 @@
     }
 
     function applyEstimateSnapshot(job) {
+      document.body.classList.remove('has-estimate-preview');
       state.pricingVersion = job.pricingVersion || 'original';
       state.customLines = customLinesFor(job).map(line => ({ ...line }));
       state.currentJobId = job.id;
@@ -1523,7 +1560,8 @@
       state.colorSearchQuery = '';
       state.shopCardRate = job.shopCardRate || 0.10;
       state.shopCardOnFullBase = job.shopCardOnFullBase !== undefined ? job.shopCardOnFullBase : true;
-      state.manualTotalWithTax = job.manualTotalWithTax !== undefined ? job.manualTotalWithTax : null;
+      state.manualTotalWithTax = job.manualTotalWithTax ?? null;
+      document.getElementById('manualTotalOverrideInput').value = state.manualTotalWithTax ?? '';
       state.counterPieces = (job.counterPieces || []).map(piece => ({ ...piece, id: uid() }));
       state.splashPieces = (job.splashPieces || []).map(piece => ({ ...piece, id: uid() }));
 
@@ -2028,52 +2066,36 @@
       const query = state.colorSearchQuery.trim().toLowerCase();
       const showInternalCogs = state.viewMode !== 'customer';
 
-      let html = '';
-      let firstMatch = null;
-      let currentSelectionFound = false;
-
-      Object.values(TIER_CATALOG).forEach(tier => {
-        const matchingColors = tier.colors
-          .map((c, idx) => ({ ...c, idx }))
-          .filter(c => {
-            if (!query) return tier.id === state.selectedTierId;
-            return (
-              c.name.toLowerCase().includes(query) ||
-              c.brand.toLowerCase().includes(query) ||
-              tier.name.toLowerCase().includes(query)
-            );
-          });
-
-        if (matchingColors.length > 0) {
-          html += `<optgroup label="${tier.name} ($${installedRate(tier, state.pricingVersion)}/SF | ${tier.thicknessLabel})">`;
-          matchingColors.forEach(c => {
-            const val = `${tier.id}:${c.idx}`;
-            const isSelected = (tier.id === state.selectedTierId && c.idx === state.selectedColorIndex);
-            if (isSelected) currentSelectionFound = true;
-            if (!firstMatch) firstMatch = { tierId: tier.id, idx: c.idx };
-
-            const cogsText = showInternalCogs ? ` — Slab COGS: $${c.slabSfCost.toFixed(2)}/SF` : '';
-            html += `<option value="${val}" ${isSelected ? 'selected' : ''}>
-              ${c.name} (${c.brand} • ${c.thickness})${cogsText}
-            </option>`;
-          });
-          html += `</optgroup>`;
-        }
-      });
-
-      if (!html) {
-        html = `<option value="">No colors match "${escapeHtml(state.colorSearchQuery)}"</option>`;
-      } else if (!currentSelectionFound && firstMatch) {
-        state.selectedTierId = firstMatch.tierId;
-        state.selectedColorIndex = firstMatch.idx;
-        renderTierButtons();
-        html = html.replace(`value="${firstMatch.tierId}:${firstMatch.idx}"`, `value="${firstMatch.tierId}:${firstMatch.idx}" selected`);
-      }
-
-      select.innerHTML = html;
-
       const activeTier = TIER_CATALOG[state.selectedTierId];
       const activeColor = activeTier.colors[state.selectedColorIndex] || activeTier.colors[0];
+
+      function colorOption(tier, color, index, selected) {
+        const cogs = showInternalCogs ? ` — Slab COGS: $${color.slabSfCost.toFixed(2)}/SF` : '';
+        return `<option value="${tier.id}:${index}" ${selected ? 'selected' : ''}>
+          ${color.name} (${color.brand} • ${color.thickness})${cogs}
+        </option>`;
+      }
+
+      let html = '';
+      let selectionInResults = false;
+      for (const tier of Object.values(TIER_CATALOG)) {
+        let options = '';
+        tier.colors.forEach((color, index) => {
+          const matches = query
+            ? [color.name, color.brand, tier.name].some(name => name.toLowerCase().includes(query))
+            : tier === activeTier;
+          if (!matches) return;
+          const selected = tier === activeTier && color === activeColor;
+          if (selected) selectionInResults = true;
+          options += colorOption(tier, color, index, selected);
+        });
+        if (options) html += `<optgroup label="${tier.name} ($${installedRate(tier, state.pricingVersion)}/SF | ${tier.thicknessLabel})">${options}</optgroup>`;
+      }
+      document.getElementById('colorSearchHint').hidden = Boolean(html);
+      if (!selectionInResults) {
+        html = `<optgroup label="Current estimate">${colorOption(activeTier, activeColor, state.selectedColorIndex, true)}</optgroup>` + html;
+      }
+      select.innerHTML = html;
 
       const edge = document.getElementById('edgeProfileSelect');
       const isDekton = activeTier.id === 'tier4';
@@ -2109,20 +2131,20 @@
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Length (in)</label>
-              <input type="number" step="0.25" min="0" value="${p.length}"
-                oninput="updateCounterPiece('${p.id}', 'length', this.validity.badInput ? NaN : this.value)"
+              <input type="number" aria-label="Counter ${index + 1} length in inches" step="any" min="0" ${numberValueAttribute(p.length)}
+                oninput="updateCounterPiece('${p.id}', 'length', readOptionalNumber(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Width (in)</label>
-              <input type="number" step="0.25" min="0" value="${p.width}"
-                oninput="updateCounterPiece('${p.id}', 'width', this.validity.badInput ? NaN : this.value)"
+              <input type="number" aria-label="Counter ${index + 1} width in inches" step="any" min="0" ${numberValueAttribute(p.width)}
+                oninput="updateCounterPiece('${p.id}', 'width', readOptionalNumber(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-2 sm:col-span-1">
               <label class="block text-[10px] font-bold text-slate-500 sm:hidden">Qty</label>
-              <input type="number" aria-label="Piece quantity" step="1" min="0" value="${p.qty ?? 1}"
-                oninput="updateCounterPiece('${p.id}', 'qty', this.validity.badInput ? NaN : this.value)"
+              <input type="number" aria-label="Counter ${index + 1} quantity" step="1" min="0" max="9007199254740991" ${numberValueAttribute(p.qty ?? 1)}
+                oninput="updateCounterPiece('${p.id}', 'qty', readOptionalNumber(this))"
                 class="w-full px-1 py-2 rounded-lg border border-slate-300 text-center text-sm font-bold" />
             </div>
             <div class="col-span-3 sm:col-span-2 text-right">
@@ -2163,20 +2185,20 @@
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Length (in)</label>
-              <input type="number" step="0.5" min="0" value="${p.length}"
-                oninput="updateSplashPiece('${p.id}', 'length', this.validity.badInput ? NaN : this.value)"
+              <input type="number" aria-label="Backsplash ${index + 1} length in inches" step="any" min="0" ${numberValueAttribute(p.length)}
+                oninput="updateSplashPiece('${p.id}', 'length', readOptionalNumber(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Height (in)</label>
-              <input type="number" step="0.5" min="0" value="${p.height}"
-                oninput="updateSplashPiece('${p.id}', 'height', this.validity.badInput ? NaN : this.value)"
+              <input type="number" aria-label="Backsplash ${index + 1} height in inches" step="any" min="0" ${numberValueAttribute(p.height)}
+                oninput="updateSplashPiece('${p.id}', 'height', readOptionalNumber(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-2 sm:col-span-1">
               <label class="block text-[10px] font-bold text-slate-500 ">Qty</label>
-              <input type="number" aria-label="Piece quantity" step="1" min="0" value="${p.qty ?? 1}"
-                oninput="updateSplashPiece('${p.id}', 'qty', this.validity.badInput ? NaN : this.value)"
+              <input type="number" aria-label="Backsplash ${index + 1} quantity" step="1" min="0" max="9007199254740991" ${numberValueAttribute(p.qty ?? 1)}
+                oninput="updateSplashPiece('${p.id}', 'qty', readOptionalNumber(this))"
                 class="w-full px-1 py-2 rounded-lg border border-slate-300 text-center text-sm font-bold" />
             </div>
             <div class="col-span-3 sm:col-span-2 text-right">
@@ -2206,11 +2228,18 @@
           </label>
           <button class="text-xs font-semibold text-slate-600" type="button" onclick="removeCustomLine(${index})">Remove line</button>
           ${[['qty', 'Quantity'], ['retail', 'Unit retail ($)'], ['cogs', 'Unit internal cost ($)']]
-            .filter(([key]) => key !== 'cogs' || state.viewMode !== 'customer')
-            .map(([key, label]) => `<label class="estimate-label">${label}
-              <input class="estimate-input" type="number" step="any" min="0" value="${Number(line[key])}"
-                oninput="updateCustomLine(${index}, '${key}', this)">
-            </label>`).join('')}
+            .map(([key, label]) => {
+              const name = `Custom line ${index + 1} ${label}`;
+              if (key === 'cogs' && state.viewMode === 'customer') {
+                // Only expose a correction target in the member view. The value belongs in the office.
+                return Number.isFinite(line.cogs) && line.cogs >= 0 ? ''
+                  : `<input hidden aria-invalid="true" aria-label="${name}">`;
+              }
+              return `<label class="estimate-label">${label}
+                <input class="estimate-input" type="number" step="any" min="0" aria-label="${name}" ${numberValueAttribute(line[key])}
+                  oninput="updateCustomLine(${index}, '${key}', this)">
+              </label>`;
+            }).join('')}
         </div>`).join('');
     }
 
@@ -2227,8 +2256,7 @@
     }
 
     function updateCustomLine(index, key, input) {
-      state.customLines[index][key] = key === 'description' ? input.value :
-        (input.validity.badInput ? NaN : Number(input.value));
+      state.customLines[index][key] = key === 'description' ? input.value : readOptionalNumber(input);
       recalculate();
     }
 
@@ -2251,7 +2279,7 @@
 
       container.innerHTML = ADDON_GROUPS.map(group => {
         const itemsHtml = group.items.map(item => {
-          const qty = state.addonQuantities[item.id] || 0;
+          const qty = state.addonQuantities[item.id] ?? 0;
           if (item.retired && !(qty > 0)) return '';
           const disabled = item.nonDektonOnly && isDekton;
           const activeRetail = getAddonRetail(item);
@@ -2265,12 +2293,12 @@
             : '';
 
           return `
-            <div class="flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border ${
+            <div data-addon-row class="flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border ${
               disabled
                 ? 'bg-slate-100/60 border-slate-200 opacity-50'
                 : qty > 0
-                  ? 'bg-blue-50/50 border-blue-200'
-                  : 'bg-white border-slate-200/80'
+                  ? 'addon-selected'
+                  : ''
             }">
               <div class="min-w-0 flex-1">
                 <div class="text-xs sm:text-sm font-semibold text-slate-800">
@@ -2282,7 +2310,7 @@
                   <span>${item.unit}</span>
                   ${subTag}
                   ${item.firstIncluded ? '<span class="ml-1 font-semibold">First cutout included</span>' : ''}
-                  ${item.id === 'miterEdge' && !isDekton && !qty && document.getElementById('edgeProfileSelect').value === 'Miter' ? '<span class="font-semibold text-amber-800">Enter the upgraded miter length in LF.</span>' : ''}
+                  ${item.id === 'miterEdge' && !isDekton && document.getElementById('edgeProfileSelect').value === 'Miter' ? '<span class="miter-quantity-hint font-semibold text-amber-800">Enter the upgraded miter length in LF.</span>' : ''}
                   ${autoFillBtn}
                 </div>
               </div>
@@ -2293,8 +2321,8 @@
                   class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-bold text-base text-slate-700 flex items-center justify-center transition disabled:pointer-events-none">
                   −
                 </button>
-                <input type="number" step="1" min="0" ${disabled || item.retired ? 'disabled' : ''} value="${disabled ? 0 : qty}"
-                  onchange="setAddonQty('${item.id}', this.value)"
+                <input id="addonQty_${item.id}" aria-label="${escapeHtml(addonName(item, state.pricingVersion))} quantity" type="number" step="any" min="0" ${disabled || item.retired ? 'disabled' : ''} ${numberValueAttribute(disabled ? 0 : qty)}
+                  oninput="updateAddonQty('${item.id}', this)"
                   class="w-12 h-9 text-center rounded-xl border border-slate-300 text-sm font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
                 <button type="button" ${disabled || item.retired ? 'disabled' : ''} onclick="stepAddon('${item.id}', 1)"
                   class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-bold text-base text-slate-700 flex items-center justify-center transition disabled:pointer-events-none">
@@ -2445,8 +2473,6 @@
         clearBtn.classList.toggle('hidden', !val.trim());
       }
       renderColorDropdown();
-      renderAddons();
-      recalculate();
     }
 
     function clearColorSearch() {
@@ -2456,8 +2482,6 @@
       if (searchEl) searchEl.value = '';
       if (clearBtn) clearBtn.classList.add('hidden');
       renderColorDropdown();
-      renderAddons();
-      recalculate();
     }
 
     function handleColorSelectChange() {
@@ -2534,14 +2558,20 @@
 
     function stepAddon(id, delta) {
       const curr = state.addonQuantities[id] || 0;
-      state.addonQuantities[id] = Math.max(0, curr + delta);
-      renderAddons();
-      recalculate();
+      setAddonQty(id, Math.max(0, curr + delta));
     }
 
-    function setAddonQty(id, val) {
-      state.addonQuantities[id] = Math.max(0, parseFloat(val) || 0);
-      renderAddons();
+    function setAddonQty(id, qty) {
+      const input = document.getElementById('addonQty_' + id);
+      input.value = qty;
+      updateAddonQty(id, input);
+    }
+
+    function updateAddonQty(id, input) {
+      const qty = readOptionalNumber(input);
+      state.addonQuantities[id] = qty;
+      input.closest('[data-addon-row]').classList.toggle('addon-selected', qty > 0);
+      if (input.disabled && qty === 0) renderAddons(); // Remove a retired item once its quantity reaches zero.
       recalculate();
     }
 
@@ -2549,9 +2579,7 @@
       if (!canIssueQuote()) return;
       const counterSf = latestCalc.counterSf;
       const demoSf = state.pricingVersion === PROGRAM_PRICING ? Math.ceil(counterSf) : Math.round(counterSf);
-      state.addonQuantities[id] = demoSf;
-      renderAddons();
-      recalculate();
+      setAddonQty(id, demoSf);
       showToast(`Synced ${demoSf} SF from countertops`);
     }
 
@@ -2565,21 +2593,14 @@
       showToast(`Loaded test total ${formatCurrency(amount, 2)}`);
     }
 
-    function handleManualTotalInput(val) {
-      const num = parseFloat(val);
-      const syncBtn = document.getElementById('btnSyncFromEstimator');
-      if (isNaN(num) || num < 0 || val.trim() === '') {
-        state.manualTotalWithTax = null;
-        if (syncBtn) syncBtn.classList.add('hidden');
-      } else {
-        state.manualTotalWithTax = num;
-        if (syncBtn) syncBtn.classList.remove('hidden');
-      }
+    function handleManualTotalInput(input) {
+      state.manualTotalWithTax = !input.validity.badInput && input.value === '' ? null : input.valueAsNumber;
       recalculate();
     }
 
     function clearManualTotalOverride() {
       state.manualTotalWithTax = null;
+      document.getElementById('manualTotalOverrideInput').value = '';
       const syncBtn = document.getElementById('btnSyncFromEstimator');
       if (syncBtn) syncBtn.classList.add('hidden');
       recalculate();
@@ -2632,7 +2653,8 @@
 
     function validJobOptions(job) {
       const between = (n, low, high) => Number.isFinite(n) && n >= low && n <= high;
-      return [45, 50].includes(job.shopLaborBase ?? 50) &&
+      return Object.values(job.addonQuantities ?? {}).every(n => between(n, 0, Infinity)) &&
+        [45, 50].includes(job.shopLaborBase ?? 50) &&
         between(job.usableYieldPct ?? 80, 40, 100) &&
         ['none', 'percent', 'fixed'].includes(job.discountMode ?? 'none') &&
         (job.discountMode === 'none' || between(job.discountValue ?? 0, 0, Infinity)) &&
@@ -2641,7 +2663,10 @@
     }
 
     function calculateEstimate(job) {
-      if (!validJobOptions(job)) return null;
+      // Older editable files could contain negative direct amounts. Let the office open
+      // those drafts for correction while preventing issue of a quote with those amounts.
+      const officeAmounts = [job.extraDirectTpiPreTax ?? 0, job.extraDirectTpiCogs ?? 0, job.manualTotalWithTax ?? 0];
+      if (!validJobOptions(job) || !officeAmounts.every(n => Number.isFinite(n) && n >= 0)) return null;
       const program = job.pricingVersion === PROGRAM_PRICING;
       const tier = TIER_CATALOG[job.selectedTierId];
       const color = tier.colors[job.selectedColorIndex] || tier.colors[0];
@@ -2662,7 +2687,7 @@
       ADDON_GROUPS.forEach(group => {
         group.items.forEach(item => {
           const disabled = item.nonDektonOnly && isDekton;
-          const qty = disabled ? 0 : (job.addonQuantities[item.id] || 0);
+          const qty = disabled ? 0 : (job.addonQuantities?.[item.id] ?? 0);
           if (qty > 0) {
             const unitRetail = getAddonRetail(item, job.addonRateMode);
             const lineRetail = roundMoney((item.firstIncluded ? Math.max(0, qty - 1) : qty) * unitRetail);
@@ -2691,8 +2716,8 @@
         if (line.retail || (program && custom.description.trim() && !line.cogs)) activeAddonLines.push(line);
         if (line.cogs) allCogsLines.push(line);
       }
-      const extraDirectPreTax = roundMoney(job.extraDirectTpiPreTax);
-      const extraDirectCogs = roundMoney(job.extraDirectTpiCogs);
+      const extraDirectPreTax = roundMoney(job.extraDirectTpiPreTax ?? 0);
+      const extraDirectCogs = roundMoney(job.extraDirectTpiCogs ?? 0);
       if (extraDirectCogs) {
         allCogsLines.push({ name: 'Extra Direct TPI Sub/COGS', qty: 1, unit: 'Job', cogs: extraDirectCogs });
       }
@@ -2747,6 +2772,9 @@
       const shopGrossProfit = roundMoney(totalBizNetRevenuePreTax - totalJobCogs);
       const revenueCents = Math.round(totalBizNetRevenuePreTax * 100);
       const profitCents = Math.round(shopGrossProfit * 100);
+      // Reject totals that cannot be represented in cents, including overflowing products.
+      if (![grossSubtotal, estimatorTotalWithTax, totalBillActionFlow, totalJobCogs, totalBizNetRevenuePreTax, shopGrossProfit]
+          .every(amount => Number.isSafeInteger(Math.round(amount * 100)))) return null;
       const trueNetMarginPct = revenueCents > 0 ? profitCents * 100 / revenueCents : 0;
 
       return {
@@ -2768,19 +2796,28 @@
       const job = currentJobInputs();
       const discountOn = job.discountMode !== 'none';
       document.getElementById('discountValueField').hidden = !discountOn;
+      document.getElementById('discountValue').disabled = !discountOn;
       document.getElementById('discountReasonField').hidden = !discountOn;
       document.getElementById('discountValueLabel').textContent = job.discountMode === 'percent' ? 'Discount (%) · up to 100%' : 'Amount ($)';
       latestCalc = calculateEstimate(job);
       document.body.classList.toggle('invalid-measurements', !latestCalc);
       const invalidYield = !document.getElementById('usableYieldPct').validity.valid;
-      document.body.classList.toggle('editing-invalid-yield', state.viewMode === 'manager' && invalidYield);
       document.getElementById('yieldEditHint').hidden = !invalidYield;
       const counterDisplay = document.getElementById('counterTotalSfDisplay');
       const splashDisplay = document.getElementById('splashTotalSfDisplay');
+      const issue = latestCalc ? null : invalidEstimateInput();
+      document.body.classList.toggle('editing-invalid-yield', state.viewMode === 'manager' && issue?.id === 'usableYieldPct');
+      document.getElementById('btnSyncFromEstimator').classList.toggle('hidden', job.manualTotalWithTax == null);
       if (!latestCalc) {
+        document.getElementById('invalidEstimateMessage').textContent = issue
+          ? `Correct ${issue.getAttribute('aria-label')} before saving, printing, or sharing.`
+          : 'Check the estimate amounts and measurements before saving, printing, or sharing.';
+        document.getElementById('fixEstimateInput').hidden = !issue;
+        document.getElementById('previewNotice').hidden = !document.body.classList.contains('has-estimate-preview');
         counterDisplay.textContent = splashDisplay.textContent = document.getElementById('combinedArea').textContent = 'Check inputs';
         return;
       }
+      document.body.classList.add('has-estimate-preview');
       const {
         tier, color, counterSf, splashSf, billableStoneSf, includeProtection, protectionCogs,
         activeAddonLines, allCogsLines, estimatorPreTaxSubtotal, estimatorGetTax, estimatorTotalWithTax,
@@ -2815,7 +2852,6 @@
       splashDisplay.textContent = `${splashSf.toFixed(2)} SF`;
       const manualInputEl = document.getElementById('manualTotalOverrideInput');
       if (document.activeElement !== manualInputEl) manualInputEl.value = finalQuoteWithTax.toFixed(2);
-      document.getElementById('btnSyncFromEstimator').classList.toggle('hidden', job.manualTotalWithTax == null);
 
       // Update Customer View DOM
       document.getElementById('summaryJobMeta').textContent = jobMeta || 'Costco Member Estimate';

@@ -1090,7 +1090,7 @@
           { id: 'plumbDisc', name: 'Plumbing Disconnect', unit: 'Sink', retailLive: 600, retailTarget: 600, cogs: 288 },
           { id: 'plumbKitchen', name: 'Plumbing Reconnect – Kitchen', unit: 'Sink', retailLive: 1400, retailTarget: 1667, cogs: 800 },
           { id: 'plumbVanity', name: 'Plumbing Reconnect – Vanity', unit: 'Sink', retailLive: 800, retailTarget: 1354, cogs: 650 },
-          { id: 'showerPan', name: 'Shower Pan Install (Standard)', unit: 'Each', retailLive: 1500, retailTarget: 1771, cogs: 850 },
+          { id: 'showerPan', retired: true, name: 'Shower Pan Install (Standard)', unit: 'Each', retailLive: 1500, retailTarget: 1771, cogs: 850 },
         ]
       }
     ];
@@ -2014,6 +2014,7 @@
       container.innerHTML = ADDON_GROUPS.map(group => {
         const itemsHtml = group.items.map(item => {
           const qty = state.addonQuantities[item.id] || 0;
+          if (item.retired && !(qty > 0)) return '';
           const disabled = item.nonDektonOnly && isDekton;
           const activeRetail = getAddonRetail(item);
 
@@ -2035,7 +2036,7 @@
             }">
               <div class="min-w-0 flex-1">
                 <div class="text-xs sm:text-sm font-semibold text-slate-800">
-                  ${item.name}
+                  ${item.name}${item.retired ? ' (previously quoted)' : ''}
                 </div>
                 <div class="text-xs text-slate-500 flex flex-wrap items-center mt-0.5">
                   <span class="font-bold text-slate-800">$${activeRetail.toLocaleString()}</span>
@@ -2052,10 +2053,10 @@
                   class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-bold text-base text-slate-700 flex items-center justify-center transition disabled:pointer-events-none">
                   −
                 </button>
-                <input type="number" step="1" min="0" ${disabled ? 'disabled' : ''} value="${disabled ? 0 : qty}"
+                <input type="number" step="1" min="0" ${disabled || item.retired ? 'disabled' : ''} value="${disabled ? 0 : qty}"
                   onchange="setAddonQty('${item.id}', this.value)"
                   class="w-12 h-9 text-center rounded-xl border border-slate-300 text-sm font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
-                <button type="button" ${disabled ? 'disabled' : ''} onclick="stepAddon('${item.id}', 1)"
+                <button type="button" ${disabled || item.retired ? 'disabled' : ''} onclick="stepAddon('${item.id}', 1)"
                   class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-bold text-base text-slate-700 flex items-center justify-center transition disabled:pointer-events-none">
                   +
                 </button>

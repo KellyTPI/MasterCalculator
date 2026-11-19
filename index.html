@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Costco Hawaii Master Estimator & 80/20 Centah/ActionFlow Splitter | Top Priority Installation</title>
+  <title>Costco Hawaii Master Estimator & 80/20 Centah/ActionFlow Splitter | Top Priority, Inc.</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="assets/pdf-lib.min.js"></script>
@@ -55,6 +55,12 @@
         font-size: 16px !important;
       }
     }
+    :where(.hidden) { display: none; }
+    .print-only { display: none; }
+    .estimate-label { display: block; font-size: .75rem; font-weight: 600; }
+    .estimate-input { display: block; width: 100%; margin-top: .25rem; padding: .5rem .65rem; border: 1px solid #cbd5e1; border-radius: .5rem; background: white; color: #0f172a; font: inherit; }
+    [hidden] { display: none !important; }
+    .invalid-measurements input:invalid { outline: 2px solid #b91c1c; }
     #measurementWarning { display: none; }
     .invalid-measurements #measurementWarning { display: block; }
     .invalid-measurements #customerPanel, .invalid-measurements #splitPanel,
@@ -76,6 +82,23 @@
       #rightWorkspaceColumn {
         width: 100% !important;
       }
+      #rightWorkspaceColumn > div { position: static !important; }
+      #rightWorkspaceColumn section { overflow: visible; }
+      #rightWorkspaceColumn button { display: none !important; }
+      .signature-block { break-inside: avoid; }
+      body.office-print:not(.invalid-measurements) #splitPanel,
+      body.office-print:not(.invalid-measurements) #managerPanel { display: block !important; break-before: page; }
+      .print-only { display: block; }
+      #customerPanel > div:first-child, #splitPanel > div:first-child { background: white !important; }
+      #customerPanel > div:first-child *, #splitPanel > div:first-child * { color: #172033 !important; }
+      body.office-print #splitPanel > div { padding: .55rem .8rem; }
+      body.office-print #splitPanel .space-y-4 > :not(:first-child) { margin-top: .45rem; }
+      body.office-print #splitPanel .space-y-2 > :not(:first-child),
+      body.office-print #splitPanel .space-y-2\.5 > :not(:first-child) { margin-top: .25rem; }
+      body.office-print #splitSectionCBox { break-inside: avoid; }
+      body.office-print #managerPanel *, body.office-print #splitSectionCBox * { color: #172033 !important; }
+      body.office-print #managerPanel, body.office-print #managerPanel *,
+      body.office-print #splitSectionCBox, body.office-print #splitSectionCBox * { background: white !important; }
       #customerPanel {
         display: block !important;
         box-shadow: none !important;
@@ -104,7 +127,7 @@
       <!-- Modal Header -->
       <div class="bg-costcoDark text-white px-5 py-4 flex items-center justify-between border-b border-slate-800">
         <div>
-          <span class="text-[11px] font-bold uppercase tracking-wider text-blue-300 block">Top Priority Installation (TPI)</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-blue-300 block">Top Priority, Inc.</span>
           <h2 class="text-lg font-extrabold">Saved Estimates & Field Jobs (<span id="modalSavedCount">0</span>)</h2>
         </div>
         <button type="button" onclick="closeSavedJobsModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold transition">
@@ -141,6 +164,10 @@
             <label class="cursor-pointer text-xs font-bold bg-white hover:bg-slate-100 text-costcoNavy border border-blue-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
               <span>⬆ Import Backup (.json)</span>
               <input id="importJsonInput" type="file" accept=".json,application/json" onchange="importSavedJobsJson(event)" class="hidden" />
+            </label>
+            <button type="button" onclick="saveEstimateJson()" class="text-xs font-bold bg-white border rounded-lg px-3 py-2">Save Current Estimate (.json)</button>
+            <label class="cursor-pointer text-xs font-bold bg-white border rounded-lg px-3 py-2">Open Estimate (.json)
+              <input type="file" id="estimateJsonInput" accept=".json,application/json" onchange="openEstimateJson(event)" class="hidden" />
             </label>
             <button id="openEstimatePdfButton" type="button" onclick="document.getElementById('estimatePdfInput').click()"
               class="bg-white hover:bg-slate-100 text-costcoNavy border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition disabled:opacity-50">
@@ -179,9 +206,9 @@
       <!-- Brand / Title -->
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-3">
-          <!-- Built-in Official Top Priority Installation (TPI) Logo -->
+          <!-- Built-in Official Top Priority, Inc. Logo -->
           <div id="headerBrandLogo" class="h-11 w-11 rounded-full bg-white p-1 shadow-xs flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 200 200" class="w-full h-full" xmlns="http://www.w3.org/2000/svg" aria-label="Top Priority Installation Logo">
+            <svg viewBox="0 0 200 200" class="w-full h-full" xmlns="http://www.w3.org/2000/svg" aria-label="Top Priority, Inc. Logo">
               <path d="M 100 10 A 90 90 0 1 0 182 136 A 84 84 0 1 1 100 18 Z" fill="#1e2029"/>
               <path d="M 100 22 A 78 78 0 1 1 26 124 A 74 74 0 1 0 100 28 Z" fill="#707378"/>
               <path d="M 56 50 L 122 50 C 154 50 166 72 162 94 C 158 114 140 122 118 122 L 118 116 C 134 115 144 106 146 92 C 148 74 138 60 116 60 L 66 60 L 66 70 L 56 70 Z" fill="#1e2029"/>
@@ -201,7 +228,7 @@
                 Costco Hawaii
               </span>
               <span class="hidden sm:inline-block bg-blue-900/90 text-blue-200 border border-blue-700/70 font-bold text-[11px] tracking-wide px-2 py-0.5 rounded-md uppercase">
-                Top Priority Installation (TPI)
+                Top Priority, Inc.
               </span>
               <span id="activeJobStatusPill" class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[10px] px-2 py-0.5 rounded-md">
                 Saved Job
@@ -280,7 +307,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
             <label for="projectName" class="block text-xs font-semibold text-slate-600 mb-1">Customer / Project Name</label>
-            <input id="projectName" type="text" value="Sample: 80 SF Kitchen + Waterfall" oninput="recalculate()"
+            <input id="projectName" type="text" value="" oninput="recalculate()"
               placeholder="e.g. Kahala Kitchen Remodel"
               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-costcoNavy focus:border-costcoNavy" />
           </div>
@@ -288,6 +315,14 @@
             <label for="jobOrderNumber" class="block text-xs font-semibold text-slate-600 mb-1">Costco / Centah Job #</label>
             <input id="jobOrderNumber" type="text" placeholder="e.g. OMS-84920" oninput="recalculate()"
               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-costcoNavy focus:border-costcoNavy" />
+          </div>
+          <div>
+            <label for="afJobNumber" class="block text-xs font-semibold text-slate-600 mb-1">ActionFlow Job #</label>
+            <input id="afJobNumber" type="text" oninput="recalculate()" class="estimate-input" />
+          </div>
+          <div>
+            <label for="quoteDate" class="block text-xs font-semibold text-slate-600 mb-1">Quote date</label>
+            <input id="quoteDate" type="date" oninput="recalculate()" class="estimate-input" />
           </div>
           <div>
             <label for="customerContact" class="block text-xs font-semibold text-slate-600 mb-1">Customer Phone / Email</label>
@@ -324,7 +359,7 @@
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">2. Curated 4-Tier Material & Color Catalog</h2>
-          <span id="selectedTierPriceBadge" class="text-xs font-bold text-white bg-costcoNavy px-3 py-1 rounded-lg">$189 / SF Installed</span>
+          <span id="selectedTierPriceBadge" class="text-xs font-bold text-white bg-costcoNavy px-3 py-1 rounded-lg">$130 / SF Installed</span>
         </div>
 
         <!-- Tier Filter Pills -->
@@ -360,6 +395,25 @@
             </div>
           </div>
 
+            <div class="sm:col-span-6">
+              <label for="edgeProfileSelect" class="block text-xs font-semibold text-slate-600 mb-1">
+                Edge Profile <span class="text-[11px] font-bold text-costcoNavy">(4cm Laminated Standard • Mitered Std on Dekton)</span>
+              </label>
+              <select id="edgeProfileSelect" onchange="renderAddons(); recalculate()"
+                class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-costcoNavy">
+                <option value="">Unspecified</option>
+                <option value="E1-Eased">E1-Eased</option>
+                <option value="E2-Top Radius">E2-Top Radius</option>
+                <option value="E3-Bevel">E3-Bevel</option>
+                <option value="E4-Top and Bottom Radius">E4-Top and Bottom Radius</option>
+                <option value="E5-3/4&quot; Radius">E5-3/4" Radius</option>
+                <option value="E6-Bullnose">E6-Bullnose</option>
+                <option value="E7-Crescent">E7-Crescent</option>
+                <option value="E8-Ogee">E8-Ogee</option>
+                <option value="Miter">Miter</option>
+              </select>
+            </div>
+
           <!-- Material Spec & Internal Slab COGS Pill -->
           <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs">
             <div class="flex items-center gap-2">
@@ -379,7 +433,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">3. Countertops, Islands & Vanities (L × W Inches)</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Auto-calculates SF per piece ((L × W) ÷ 144).</p>
+            <p class="text-xs text-slate-500 mt-0.5"><span id="counterInstructions"></span></p>
           </div>
           <div class="flex flex-wrap items-center gap-1.5">
             <button type="button" onclick="addCounterPiece('Counter Run', 96, 25.5)" class="bg-costcoNavy hover:bg-costcoDark text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition">
@@ -391,16 +445,18 @@
             <button type="button" onclick="addCounterPiece('Bath Vanity', 60, 22.5)" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition">
               + Vanity
             </button>
-            <button type="button" onclick="clearAllPieces()" class="text-xs font-semibold text-slate-500 hover:text-red-600 px-2 py-2 rounded-xl hover:bg-red-50 transition">
+            <button id="addWaterfallLeg" type="button" onclick="addCounterPiece('Waterfall Leg', 36, 28)" class="bg-slate-700 text-white text-xs font-bold px-3 py-2 rounded-xl">+ Waterfall Leg</button>
+            <button type="button" onclick="clearPieces('counter')" class="text-xs font-semibold text-slate-500 hover:text-red-600 px-2 py-2 rounded-xl hover:bg-red-50 transition">
               Clear
             </button>
           </div>
         </div>
 
         <div class="hidden sm:grid sm:grid-cols-12 gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2 mb-1.5">
-          <div class="col-span-5">Section Name</div>
+          <div class="col-span-4">Section Name</div>
           <div class="col-span-2 text-center">Length (in)</div>
           <div class="col-span-2 text-center">Width (in)</div>
+          <div class="col-span-1 text-center">Qty</div>
           <div class="col-span-2 text-right">Area (SF)</div>
           <div class="col-span-1"></div>
         </div>
@@ -429,6 +485,7 @@
             <button type="button" onclick="addSplashPiece('Full-Height Splash', 96, 18)" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition">
               + Full Splash
             </button>
+            <button type="button" onclick="clearPieces('splash')" class="text-xs font-semibold text-slate-600 px-2 py-2">Clear</button>
           </div>
         </div>
 
@@ -440,6 +497,9 @@
           <span class="font-semibold text-slate-600">Total Backsplash Area:</span>
           <span id="splashTotalSfDisplay" class="font-extrabold text-slate-900 text-base">—</span>
         </div>
+        <div class="flex justify-between mt-2 pt-2 border-t text-sm font-bold text-costcoNavy">
+          <span>Combined billable area</span><span id="combinedArea">—</span>
+        </div>
       </section>
 
       <!-- 5. A La Carte Add-On Menu & Protection Plan -->
@@ -447,7 +507,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
           <div>
             <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">5. A La Carte Add-Ons & Services</h2>
-            <p class="text-xs text-slate-500 mt-0.5">40% Margin Target Rates active by default (toggle to inspect Live Sheet Rates).</p>
+            <p class="text-xs text-slate-500 mt-0.5"><span id="pricingDescription"></span></p>
           </div>
 
           <!-- Rate Mode Toggle: 40% Margin Target Rates (Default) vs Live Sheet Rates -->
@@ -473,7 +533,7 @@
                 10-Year Granite Gold Protection Plan ($399 Retail)
               </div>
               <div class="text-[11px] text-slate-600">
-                Always included by default; rolled invisibly into installed countertop total on Customer Quote.
+                Included in the installed countertop total when selected.
               </div>
             </div>
           </label>
@@ -484,35 +544,36 @@
 
         <!-- Dekton Miter Standard Banner -->
         <div id="dektonMiterNotice" class="hidden mb-4 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs px-3.5 py-2.5 rounded-xl font-medium">
-          ✓ <strong>Tier 4 (1.2cm Dekton) Selected:</strong> Mitered edge is included as standard in the $218/SF rate (Non-Dekton Miter Edge auto-zeroed).
+          ✓ <strong>Tier 4 (1.2cm Dekton) Selected:</strong> Mitered edge is included in the installed rate (Non-Dekton Miter Edge auto-zeroed).
         </div>
 
         <div id="addonsContainer" class="space-y-4">
           <!-- Populated by JS -->
         </div>
 
-        <!-- Custom Carpentry / Electrical / Plumbing Manual Scope -->
         <div class="mt-5 pt-4 border-t border-slate-200">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Custom Scope (Carpentry / Electrical / Plumbing)</h3>
-          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/90 space-y-3">
-            <div>
-              <label for="customScopeDesc" class="block text-xs font-semibold text-slate-600 mb-1">Custom Scope Description</label>
-              <input id="customScopeDesc" type="text" placeholder="e.g. Custom Pony Wall Framing & Subpanel" oninput="recalculate()"
-                class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label for="customScopeRetail" class="block text-xs font-semibold text-slate-600 mb-1">Customer Retail Price ($)</label>
-                <input id="customScopeRetail" type="number" step="1" min="0" value="0" oninput="recalculate()"
-                  class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
-              </div>
-              <div id="customScopeCogsWrapper" class="hidden">
-                <label for="customScopeCogs" class="block text-xs font-semibold text-amber-800 mb-1">Internal Sub / COGS Cost ($)</label>
-                <input id="customScopeCogs" type="number" step="1" min="0" value="0" oninput="recalculate()"
-                  class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-bold text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-            </div>
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-bold text-slate-700">Custom scope</h3>
+            <button type="button" onclick="addCustomLine()" class="rounded-lg px-3 py-2 text-sm font-bold bg-blue-50 text-costcoNavy">+ Custom line</button>
           </div>
+          <div id="customLines" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500">6. Promotional / manager discount</h2>
+        <div class="grid sm:grid-cols-2 gap-3 mt-3">
+          <label class="estimate-label">Pre-tax discount
+            <select class="estimate-input" id="discountMode" onchange="recalculate()">
+              <option value="none">None</option><option value="percent">Percentage</option><option value="fixed">Fixed amount</option>
+            </select>
+          </label>
+          <label id="discountValueField" class="estimate-label"><span id="discountValueLabel">Amount</span>
+            <input class="estimate-input" id="discountValue" type="number" min="0" step="any" oninput="recalculate()" />
+          </label>
+          <label id="discountReasonField" class="estimate-label sm:col-span-2">Discount label on quote
+            <input class="estimate-input" id="discountReason" type="text" placeholder="Promotional discount" oninput="recalculate()" />
+          </label>
         </div>
       </section>
 
@@ -521,7 +582,7 @@
     <!-- RIGHT COLUMN: Mode-Specific Output Panels (5 cols on desktop) -->
     <div id="rightWorkspaceColumn" class="lg:col-span-5 space-y-6">
       <p id="measurementWarning" role="alert" class="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-900">
-        Correct the countertop or backsplash dimensions before issuing this quote. Enter zero or a positive number for each measurement.
+        Check the highlighted estimate inputs before saving, printing, or sharing.
       </p>
       <div class="lg:sticky lg:top-20 space-y-5">
 
@@ -531,25 +592,25 @@
         <section id="customerPanel" class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
           <div class="bg-costcoNavy text-white px-4 sm:px-5 py-4 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-              <!-- Built-in Official Top Priority Installation (TPI) Logo -->
+              <!-- Built-in Official Top Priority, Inc. Logo -->
               <div id="quoteCardLogo" class="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-white p-1 shadow-xs flex items-center justify-center shrink-0">
-                <svg viewBox="0 0 200 200" class="w-full h-full" xmlns="http://www.w3.org/2000/svg" aria-label="Top Priority Installation Logo">
-                  <path d="M 100 10 A 90 90 0 1 0 182 136 A 84 84 0 1 1 100 18 Z" fill="#1e2029"/>
-                  <path d="M 100 22 A 78 78 0 1 1 26 124 A 74 74 0 1 0 100 28 Z" fill="#707378"/>
-                  <path d="M 56 50 L 122 50 C 154 50 166 72 162 94 C 158 114 140 122 118 122 L 118 116 C 134 115 144 106 146 92 C 148 74 138 60 116 60 L 66 60 L 66 70 L 56 70 Z" fill="#1e2029"/>
-                  <rect x="85" y="63" width="32" height="4" rx="1.5" fill="#1e2029"/>
-                  <path d="M 88 68 L 114 68 L 111 72 L 91 72 Z" fill="#1e2029"/>
-                  <rect x="92" y="74" width="18" height="74" fill="#1e2029"/>
-                  <line x1="96" y1="76" x2="96" y2="146" stroke="#ffffff" stroke-width="1.6"/>
-                  <line x1="101" y1="76" x2="101" y2="146" stroke="#ffffff" stroke-width="1.6"/>
-                  <line x1="106" y1="76" x2="106" y2="146" stroke="#ffffff" stroke-width="1.6"/>
-                  <path d="M 90 149 L 112 149 L 115 153 L 87 153 Z" fill="#1e2029"/>
-                  <rect x="84" y="154" width="34" height="5" rx="1" fill="#1e2029"/>
-                </svg>
+                <svg viewBox="0 0 200 200" class="w-full h-full" xmlns="http://www.w3.org/2000/svg" aria-label="Top Priority, Inc. Logo">
+              <path d="M 100 10 A 90 90 0 1 0 182 136 A 84 84 0 1 1 100 18 Z" fill="#1e2029"/>
+              <path d="M 100 22 A 78 78 0 1 1 26 124 A 74 74 0 1 0 100 28 Z" fill="#707378"/>
+              <path d="M 56 50 L 122 50 C 154 50 166 72 162 94 C 158 114 140 122 118 122 L 118 116 C 134 115 144 106 146 92 C 148 74 138 60 116 60 L 66 60 L 66 70 L 56 70 Z" fill="#1e2029"/>
+              <rect x="85" y="63" width="32" height="4" rx="1.5" fill="#1e2029"/>
+              <path d="M 88 68 L 114 68 L 111 72 L 91 72 Z" fill="#1e2029"/>
+              <rect x="92" y="74" width="18" height="74" fill="#1e2029"/>
+              <line x1="96" y1="76" x2="96" y2="146" stroke="#ffffff" stroke-width="1.6"/>
+              <line x1="101" y1="76" x2="101" y2="146" stroke="#ffffff" stroke-width="1.6"/>
+              <line x1="106" y1="76" x2="106" y2="146" stroke="#ffffff" stroke-width="1.6"/>
+              <path d="M 90 149 L 112 149 L 115 153 L 87 153 Z" fill="#1e2029"/>
+              <rect x="84" y="154" width="34" height="5" rx="1" fill="#1e2029"/>
+            </svg>
               </div>
               <div class="min-w-0 flex-1">
                 <span id="summaryJobMeta" class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-blue-200 block truncate">—</span>
-                <h2 id="summaryProjectTitle" class="text-base sm:text-lg font-bold truncate">Sample: 80 SF Kitchen + Waterfall</h2>
+                <h2 id="summaryProjectTitle" class="text-base sm:text-lg font-bold truncate">Costco Member Estimate</h2>
               </div>
             </div>
             <div class="text-right shrink-0">
@@ -558,11 +619,17 @@
           </div>
 
           <div class="p-5 space-y-4">
+            <div class="text-xs text-slate-600">
+              <strong class="text-slate-900">Top Priority, Inc.</strong><br>
+              94-240 Pupuole St. Waipahu, HI 96797<br>(808) 638-3838 · www.toppriorityhawaii.com
+              <div id="quoteContacts" class="mt-2"></div>
+            </div>
             <!-- Selected Surface Pill -->
             <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 flex items-center justify-between">
               <div>
                 <div class="text-xs text-slate-500 font-medium">Selected Surface</div>
                 <div id="summaryColorName" class="text-sm font-bold text-slate-900">—</div>
+                <div id="summaryEdge" class="text-xs text-slate-600"></div>
                 <div id="summarySfBreakdown" class="text-xs text-slate-500 mt-0.5">—</div>
               </div>
               <div class="text-right">
@@ -583,6 +650,7 @@
               </div>
             </div>
 
+            <div id="customerDiscount" class="text-sm font-semibold text-emerald-800" hidden></div>
             <!-- Pre-Tax Subtotal, Hawaii GET, & Final Quote Total -->
             <div class="pt-3 border-t-2 border-slate-200 space-y-2">
               <div class="flex items-center justify-between text-xs sm:text-sm text-slate-600">
@@ -609,7 +677,7 @@
                 <span id="custPayCostco80" class="font-extrabold text-costcoNavy">—</span>
               </div>
               <div class="flex items-center justify-between text-xs">
-                <span class="text-slate-700 font-medium">2. Due to Top Priority Install at Completion (20% incl. GET):</span>
+                <span class="text-slate-700 font-medium">2. Due to Top Priority, Inc. at Completion (20% incl. GET):</span>
                 <span id="custPayTpi20" class="font-extrabold text-slate-900">—</span>
               </div>
             </div>
@@ -629,6 +697,16 @@
               </div>
             </div>
 
+            <div class="signature-block space-y-4 pt-3 border-t border-slate-200 text-xs text-slate-600">
+              <strong class="text-sm text-slate-900">Customer approval &amp; acceptance</strong>
+              <p>By signing below, Customer approves the scope of work, material selection, and pricing outlined in this estimate.</p>
+              <div class="grid grid-cols-3 gap-4 pt-5">
+                <span class="border-t border-slate-400 pt-1">Customer signature</span>
+                <span class="border-t border-slate-400 pt-1">Printed name</span>
+                <span class="border-t border-slate-400 pt-1">Date</span>
+              </div>
+            </div>
+
             <!-- Quote and editable work copy -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 no-print">
               <button type="button" onclick="copyQuoteToClipboard()"
@@ -639,7 +717,7 @@
                 </svg>
                 <span>Copy Customer Quote</span>
               </button>
-              <button type="button" onclick="if (canIssueQuote()) window.print()"
+              <button type="button" onclick="printEstimate(false)"
                 class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-sm py-3.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
                 <span>🖨 Print / PDF</span>
               </button>
@@ -664,8 +742,10 @@
           </div>
 
           <div class="p-5 space-y-4 text-xs sm:text-sm">
+            <div id="officeJobMeta" class="text-sm font-semibold text-slate-700"></div>
+            <div class="print-only">Contract total including GET <strong id="printContractTotal"></strong> · Pre-tax subtotal <strong id="printContractBase"></strong></div>
             <!-- Step 1 & Step 2: Final Quote Override + Quick Presets -->
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+            <div class="no-print bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <label for="manualTotalOverrideInput" class="text-xs font-bold text-slate-800">
                   Step 1: Final Quote (Total with 4.712% Tax)
@@ -703,6 +783,7 @@
               </div>
             </div>
 
+            <div class="flex justify-between text-xs"><span>Total GET on contract</span><strong id="splitContractTax"></strong></div>
             <!-- SECTION A: THE COSTCO PORTION (80% - CENTAH) -->
             <div class="border border-blue-200 rounded-xl overflow-hidden">
               <div class="bg-blue-50 px-3.5 py-2.5 border-b border-blue-200 flex items-center justify-between">
@@ -745,7 +826,7 @@
 
                   <div class="flex justify-between text-rose-600">
                     <span>Physical Card + Mailing Fee ($1.40 + $0.47):</span>
-                    <span class="font-semibold">-$1.87</span>
+                    <span id="splitCardFee" class="font-semibold">—</span>
                   </div>
                 </div>
 
@@ -771,7 +852,8 @@
                 </div>
 
                 <!-- Optional Extra Direct TPI Add-Ons (e.g. direct plumbing change orders) -->
-                <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                <div class="print-only">Extra direct TPI charges (pre-tax) <strong id="printDirectCharges"></strong> · Direct job costs <strong id="printDirectCosts"></strong></div>
+                <div class="no-print bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
                   <div class="flex items-center justify-between gap-2">
                     <label for="extraDirectTpiPreTax" class="font-semibold text-slate-700">
                       + Extra Direct TPI Add-Ons (Pre-Tax, e.g. Direct Plumbing):
@@ -814,6 +896,7 @@
                   <span>Total Business Net Revenue (Net Costco Payout + TPI Direct Base):</span>
                   <span id="splitTotalNetBizRev" class="font-extrabold text-white">—</span>
                 </div>
+                <div class="flex justify-between text-slate-200"><span>Net cash including direct TPI GET</span><strong id="splitCashWithTax"></strong></div>
                 <div class="flex justify-between text-slate-300">
                   <span>Total Job COGS (Material + Labor + Subs + Plan):</span>
                   <span id="splitTotalJobCogs" class="font-bold text-amber-300">—</span>
@@ -836,6 +919,7 @@
               </div>
             </div>
 
+            <button type="button" onclick="printEstimate(true)" class="no-print w-full rounded-xl bg-slate-100 py-3 text-sm font-bold">Print Office Record / PDF</button>
             <!-- Copy Centah & ActionFlow Split Button -->
             <button type="button" onclick="copySplitToClipboard()"
               class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
@@ -861,11 +945,20 @@
           </div>
 
           <div class="p-5 space-y-4 text-xs">
+            <div class="grid sm:grid-cols-2 gap-3 text-slate-200">
+              <label class="estimate-label">Base labor per SF
+                <select class="estimate-input" id="shopLaborBase" onchange="recalculate()"><option value="45">$45</option><option value="50">$50</option></select>
+                <small>Dekton adds $30/SF</small>
+              </label>
+              <label class="estimate-label">Usable slab yield (%)
+                <input class="estimate-input" type="number" min="40" max="100" step="any" id="usableYieldPct" required value="80" oninput="recalculate()">
+              </label>
+            </div>
             <!-- Slab Yield & Boneyard Calculator -->
             <div class="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/80 space-y-2">
               <div class="flex items-center justify-between">
                 <span class="font-bold text-slate-300 uppercase tracking-wider text-[11px]">Jumbo Slab Yield (327×159 cm = 55.96 SF)</span>
-                <span class="text-[11px] font-bold text-amber-300">80% Yield</span>
+                <span class="text-[11px] font-bold text-amber-300" id="mgrYieldBadge">80% Yield</span>
               </div>
               <div class="grid grid-cols-3 gap-2 pt-1">
                 <div class="bg-slate-900/90 p-2.5 rounded-lg border border-slate-700/60">
@@ -873,7 +966,7 @@
                   <div id="mgrNetStoneSf" class="text-sm font-extrabold text-white mt-0.5">—</div>
                 </div>
                 <div class="bg-slate-900/90 p-2.5 rounded-lg border border-slate-700/60">
-                  <div class="text-slate-400 text-[11px]">Gross @ 80%</div>
+                  <div class="text-slate-400 text-[11px]">Gross stone SF</div>
                   <div id="mgrGrossYieldSf" class="text-sm font-extrabold text-amber-300 mt-0.5">—</div>
                 </div>
                 <div class="bg-slate-900/90 p-2.5 rounded-lg border border-slate-700/60">
@@ -914,6 +1007,7 @@
 
             <!-- Revenue vs COGS Summary -->
             <div class="bg-slate-800/70 rounded-xl p-3.5 border border-slate-700/80 space-y-1.5">
+              <div id="managerDiscount" class="text-emerald-300"></div>
               <div class="flex justify-between text-slate-300">
                 <span>Pre-Tax Project Subtotal:</span>
                 <span id="mgrPreTaxSubtotal" class="font-bold text-white">—</span>
@@ -963,6 +1057,7 @@
         </div>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
+        <button type="button" onclick="printEstimate(state.viewMode !== 'customer')" class="bg-slate-100 text-slate-800 border rounded-xl text-xs font-bold px-2 py-2.5">Print</button>
         <button type="button" onclick="scrollToResultsMobile()"
           class="bg-slate-100 active:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs px-2.5 py-2.5 rounded-xl whitespace-nowrap">
           View Quote ↓
@@ -990,17 +1085,17 @@
         shopLaborSf: 50,
         thicknessLabel: '2 cm',
         colors: [
-          { name: 'Miami White', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
-          { name: 'Linen Cream', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
-          { name: 'Grey Expo', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
-          { name: 'White Storm', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 19.94 },
-          { name: 'Blanco Maple', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 21.33 },
-          { name: 'Calacatta Tova', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 21.33 },
-          { name: 'Desert Silver', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 21.33 },
-          { name: 'Caledonia', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 11.67 },
-          { name: 'Silver Blue', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 12.35 },
-          { name: 'White Napoli', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 11.67 },
-          { name: 'Majestic White 19', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 11.67 },
+          { id: 's-miami-white', name: 'Miami White', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
+          { id: 's-linen-cream', name: 'Linen Cream', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
+          { id: 's-grey-expo', name: 'Grey Expo', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
+          { id: 's-white-storm', name: 'White Storm', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 19.94 },
+          { id: 's-blanco-maple', name: 'Blanco Maple', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 21.33 },
+          { id: 's-calacatta-tova', name: 'Calacatta Tova', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 21.33 },
+          { id: 's-desert-silver', name: 'Desert Silver', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 21.33 },
+          { id: 'g-caledonia', name: 'Caledonia', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 11.67 },
+          { id: 'g-silver-blue', name: 'Silver Blue', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 12.35 },
+          { id: 'g-white-napoli', name: 'White Napoli', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 11.67 },
+          { id: 'g-majestic-white', name: 'Majestic White 19', brand: 'Sensa (Granite Group 2)', thickness: '2 cm', slabSfCost: 11.67 },
         ]
       },
       tier2: {
@@ -1011,16 +1106,16 @@
         shopLaborSf: 50,
         thicknessLabel: '2 cm',
         colors: [
-          { name: 'Bronze Rivers', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
-          { name: 'Blanco Zeus', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
-          { name: 'Lagoon', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
-          { name: 'Eternal Statuario', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 27.43 },
-          { name: 'Charcoal Soapstone (Polished)', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
-          { name: 'Pearl Jasmine (Polished)', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
-          { name: 'Blue Pearl', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 19.22 },
-          { name: 'Caroline Summer', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 21.56 },
-          { name: 'Snowfall', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 19.01 },
-          { name: 'White Macaubas Quartzite', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 24.98 },
+          { id: 's-bronze-rivers', name: 'Bronze Rivers', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
+          { id: 's-blanco-zeus', name: 'Blanco Zeus', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
+          { id: 's-lagoon', name: 'Lagoon', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
+          { id: 's-eternal-statuario', name: 'Eternal Statuario', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 27.43 },
+          { id: 's-charcoal-soapstone', name: 'Charcoal Soapstone (Polished)', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
+          { id: 's-pearl-jasmine', name: 'Pearl Jasmine (Polished)', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
+          { id: 'g-blue-pearl', name: 'Blue Pearl', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 19.22 },
+          { id: 'g-caroline-summer', name: 'Caroline Summer', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 21.56 },
+          { id: 'g-snowfall', name: 'Snowfall', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 19.01 },
+          { id: 'g-white-macaubas', name: 'White Macaubas Quartzite', brand: 'Sensa (Granite Groups 3 & 4)', thickness: '2 cm', slabSfCost: 24.98 },
         ]
       },
       tier3: {
@@ -1031,16 +1126,16 @@
         shopLaborSf: 50,
         thicknessLabel: '2 cm',
         colors: [
-          { name: 'Et. Calacatta Gold (Polished)', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 30.06 },
-          { name: 'Et. Calacatta Gold (Suede)', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 37.24 },
-          { name: 'Ethereal Noctis', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 30.06 },
-          { name: 'Parisien Bleu', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 32.08 },
-          { name: 'Et. Marquina', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
-          { name: 'Ethereal Glow', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
-          { name: 'Ethereal Haze', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
-          { name: 'Jardin Emerald', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
-          { name: 'Versailles Ivory', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
-          { name: 'Taj Mahal Quartzite', brand: 'Sensa Quartzite', thickness: '2 cm', slabSfCost: 34.84 },
+          { id: 's-calacatta-gold-pol', name: 'Et. Calacatta Gold (Polished)', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 30.06 },
+          { id: 's-calacatta-gold-suede', name: 'Et. Calacatta Gold (Suede)', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 37.24 },
+          { id: 's-ethereal-noctis', name: 'Ethereal Noctis', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 30.06 },
+          { id: 's-parisien-bleu', name: 'Parisien Bleu', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 32.08 },
+          { id: 's-marquina', name: 'Et. Marquina', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
+          { id: 's-ethereal-glow', name: 'Ethereal Glow', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
+          { id: 's-ethereal-haze', name: 'Ethereal Haze', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
+          { id: 's-jardin-emerald', name: 'Jardin Emerald', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
+          { id: 's-versailles-ivory', name: 'Versailles Ivory', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 33.86 },
+          { id: 'g-taj-mahal', name: 'Taj Mahal Quartzite', brand: 'Sensa Quartzite', thickness: '2 cm', slabSfCost: 34.84 },
         ]
       },
       tier4: {
@@ -1051,45 +1146,55 @@
         shopLaborSf: 80, // All-inclusive 1.2cm Dekton with miter edge standard
         thicknessLabel: '1.2 cm (Miter Std)',
         colors: [
-          { name: 'Arga', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
-          { name: 'Bergen', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
-          { name: 'Entzo Calacatta', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
-          { name: 'Laurent', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
-          { name: 'Rem', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
-          { name: 'Awake', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 25.30 },
-          { name: 'Trance', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 25.30 },
-          { name: 'Borealis', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 25.30 },
+          { id: 'd-arga', name: 'Arga', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
+          { id: 'd-bergen', name: 'Bergen', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
+          { id: 'd-entzo', name: 'Entzo Calacatta', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
+          { id: 'd-laurent', name: 'Laurent', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
+          { id: 'd-rem', name: 'Rem', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
+          { id: 'd-awake', name: 'Awake', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 25.30 },
+          { id: 'd-trance', name: 'Trance', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 25.30 },
+          { id: 'd-borealis', name: 'Borealis', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 25.30 },
         ]
       }
     };
 
+    // Saved jobs without a pricingVersion use the original GitHub schedule.
+    const PROGRAM_PRICING = '2026-11';
+    const PROGRAM_TIER_RATES = { tier1: 130, tier2: 150, tier3: 175, tier4: 205 };
     const ADDON_GROUPS = [
+      {
+        title: 'Sink & Cooktop Cutouts',
+        items: [
+          { id: 'undermountSink', fileId: 'undermount_sink', name: 'Undermount Sink Cutout', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 75 },
+          { id: 'cooktopCutout', fileId: 'cooktop_dropin_cutout', name: 'Cooktop / Drop-In Sink Cutout', unit: 'Each', retailLive: 125, retailTarget: 125, cogs: 50, firstIncluded: true },
+        ]
+      },
       {
         title: 'Fabrication & Edge Upgrades',
         items: [
-          { id: 'waterfall', name: 'Waterfall Panel (36"×28")', unit: 'Each', retailLive: 1700, retailTarget: 1700, cogs: 816, addsNetSf: 7 },
-          { id: 'miterEdge', name: 'Miter Edge (Non-Dekton)', unit: 'LF', retailLive: 30, retailTarget: 30, cogs: 14.40, nonDektonOnly: true },
-          { id: 'outletCutout', name: 'Outlet Cutout', unit: 'Each', retailLive: 25, retailTarget: 25, cogs: 12 },
+          { id: 'waterfall', fileId: 'waterfall', programCogs: 900, name: 'Waterfall Panel (36"×28")', unit: 'Each', retailLive: 1700, retailTarget: 1700, cogs: 816, addsNetSf: 7 },
+          { id: 'miterEdge', fileId: 'miter_edge', programCogs: 15, name: 'Miter Edge (Non-Dekton)', unit: 'LF', retailLive: 30, retailTarget: 30, cogs: 14.40, nonDektonOnly: true },
+          { id: 'outletCutout', fileId: 'outlet_cutouts', programCogs: 10, name: 'Outlet Cutout', unit: 'Each', retailLive: 25, retailTarget: 25, cogs: 12 },
         ]
       },
       {
         title: 'Demolition & Site Logistics',
         items: [
-          { id: 'demoStone', name: 'Demo Stone', unit: 'SF', retailLive: 21, retailTarget: 21, cogs: 10, hasAutoFillSf: true },
-          { id: 'demoLam', name: 'Demo SS or Laminate', unit: 'SF', retailLive: 11, retailTarget: 11, cogs: 5, hasAutoFillSf: true },
-          { id: 'demoTile', name: 'Demo Tile', unit: 'SF', retailLive: 21, retailTarget: 21, cogs: 10, hasAutoFillSf: true },
-          { id: 'extraCarry', name: 'Oversize Piece / Extra Man', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120 },
-          { id: 'highrise', name: 'Highrise Fee', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120 },
+          { id: 'demoStone', fileId: 'demo_stone', name: 'Demo Stone', unit: 'SF', retailLive: 21, retailTarget: 21, cogs: 10, hasAutoFillSf: true },
+          { id: 'demoLam', fileId: 'demo_ss_laminate', name: 'Demo SS or Laminate', unit: 'SF', retailLive: 11, retailTarget: 11, cogs: 5, hasAutoFillSf: true },
+          { id: 'demoTile', fileId: 'demo_tile', name: 'Demo Tile', unit: 'SF', retailLive: 21, retailTarget: 21, cogs: 10, hasAutoFillSf: true },
+          { id: 'extraCarry', fileId: 'oversize_piece', programCogs: 150, name: 'Oversize Piece / Extra Man', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120 },
+          { id: 'highrise', fileId: 'highrise_fee', programCogs: 150, name: 'Highrise Fee', unit: 'Each', retailLive: 250, retailTarget: 250, cogs: 120 },
         ]
       },
       {
         title: 'Licensed Plumbing & Electrical',
         items: [
-          { id: 'elecDisc', name: 'Electrical Disconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 314.14 },
-          { id: 'elecReconn', name: 'Electrical Reconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 314.14 },
-          { id: 'plumbDisc', name: 'Plumbing Disconnect', unit: 'Sink', retailLive: 600, retailTarget: 600, cogs: 288 },
-          { id: 'plumbKitchen', name: 'Plumbing Reconnect – Kitchen', unit: 'Sink', retailLive: 1400, retailTarget: 1667, cogs: 800 },
-          { id: 'plumbVanity', name: 'Plumbing Reconnect – Vanity', unit: 'Sink', retailLive: 800, retailTarget: 1354, cogs: 650 },
+          { id: 'elecDisc', fileId: 'elec_disconnect', programCogs: 400, name: 'Electrical Disconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 314.14 },
+          { id: 'elecReconn', fileId: 'elec_reconnect', programCogs: 400, name: 'Electrical Reconnect (up to 5)', unit: 'Each', retailLive: 600, retailTarget: 654, cogs: 314.14 },
+          { id: 'plumbDisc', fileId: 'plumb_disconnect', programCogs: 400, name: 'Plumbing Disconnect', unit: 'Sink', retailLive: 600, retailTarget: 600, cogs: 288 },
+          { id: 'plumbKitchen', fileId: 'plumb_reconnect_kitchen', programCogs: 1000, name: 'Plumbing Reconnect – Kitchen', unit: 'Sink', retailLive: 1400, retailTarget: 1667, cogs: 800 },
+          { id: 'plumbVanity', fileId: 'plumb_reconnect_vanity', name: 'Plumbing Reconnect – Vanity', unit: 'Sink', retailLive: 800, retailTarget: 1354, cogs: 650 },
           { id: 'showerPan', retired: true, name: 'Shower Pan Install (Standard)', unit: 'Each', retailLive: 1500, retailTarget: 1771, cogs: 850 },
         ]
       }
@@ -1098,7 +1203,18 @@
     const PROTECTION_PLAN_RETAIL = 399;
     const PROTECTION_PLAN_COGS = 191.52;
     const JUMBO_SLAB_SF = (327 * 159) / (30.48 ** 2);
-    const USABLE_YIELD = 0.80;
+    function installedRate(tier, pricingVersion) {
+      return pricingVersion === PROGRAM_PRICING ? PROGRAM_TIER_RATES[tier.id] : tier.retailSf;
+    }
+
+    function addonCost(item, pricingVersion) {
+      return pricingVersion === PROGRAM_PRICING ? (item.programCogs ?? item.cogs) : item.cogs;
+    }
+
+    function addonName(item, pricingVersion) {
+      return item.id === 'waterfall' && pricingVersion === PROGRAM_PRICING ? 'Waterfall Panel (labor)' : item.name;
+    }
+
     const HAWAII_GET_RATE = 0.04712;
     const COSTCO_OMS_MARGIN_RATE = 0.10;
     const COSTCO_CARD_MAILING_FEE = 1.87; // $1.40 + $0.47
@@ -1109,8 +1225,10 @@
     let state = {
       currentJobId: null,
       viewMode: 'customer',         // 'customer' | 'split' | 'manager'
-      addonRateMode: 'target',      // 'target' (40% Margin Target Rates - Default) | 'live' (Live Sheet Rates)
-      selectedTierId: 'tier2',
+      pricingVersion: PROGRAM_PRICING,
+      addonRateMode: 'live',
+      customLines: [],
+      selectedTierId: 'tier1',
       selectedColorIndex: 0,
       colorSearchQuery: '',
       shopCardRate: 0.10,           // 0.10 Standard | 0.15 Promo
@@ -1123,29 +1241,6 @@
 
     let savedJobs = [];
     let latestCalc = null;
-
-    function initDefaultState() {
-      state.currentJobId = 'job_sample_80sf';
-      state.addonRateMode = 'target';
-      state.selectedTierId = 'tier2';
-      state.selectedColorIndex = 0; // Bronze Rivers
-      state.colorSearchQuery = '';
-      state.shopCardRate = 0.10;
-      state.shopCardOnFullBase = true;
-      state.manualTotalWithTax = null;
-      state.counterPieces = [
-        { id: uid(), name: 'Kitchen Island', length: 96, width: 42 },           // 28.00 SF
-        { id: uid(), name: 'Perimeter Range Run', length: 120, width: 25.5 },   // 21.25 SF
-        { id: uid(), name: 'Perimeter Sink Run', length: 173.65, width: 25.5 }  // 30.75 SF -> Total = 80.00 SF
-      ];
-      state.splashPieces = [
-        { id: uid(), name: '4" Standard Backsplash', length: 384, height: 4 }    // 10.67 SF
-      ];
-      state.addonQuantities = {};
-      ADDON_GROUPS.forEach(g => g.items.forEach(item => {
-        state.addonQuantities[item.id] = item.id === 'waterfall' ? 1 : 0;
-      }));
-    }
 
     function uid() {
       return 'p_' + Math.random().toString(36).substring(2, 9);
@@ -1231,18 +1326,27 @@
       ].map(job => ({ ...job, summaryCache: summarizeEstimate(calculateEstimate(job)) }));
     }
 
-    // Original bundled examples had hand-entered, rounded cache values. Saved user
-    // quotes keep their historical summaries until the user loads and saves them.
-    function refreshLegacySample(job) {
+    function migrateSavedJob(job) {
+      // Strip the retired input before old review files are stored or exported again.
+      const retiredRate = job?.salesCommissionPct;
+      if (job && Object.hasOwn(job, 'salesCommissionPct')) {
+        job = { ...job };
+        delete job.salesCommissionPct;
+      }
+
+      // Only the original bundled examples had hand-entered totals.
       const cache = job?.summaryCache;
       const oldKitchen = job?.id === 'job_sample_80sf' && cache?.billableSf === 90.67 &&
         cache.finalTotalWithTax === 20141.35 && cache.netMarginPct === 44.8;
       const oldCaliwag = job?.id === 'job_caliwag_split' && cache?.billableSf === 85.17 &&
         cache.finalTotalWithTax === 29002.34 && cache.netMarginPct === 45.1;
-      if (!oldKitchen && !oldCaliwag) return job;
+      if (!oldKitchen && !oldCaliwag && !retiredRate) return job;
       try {
         validateEditableEstimate(job);
-        return { ...job, summaryCache: summarizeEstimate(calculateEstimate(job)) };
+        const summary = summarizeEstimate(calculateEstimate(job));
+        // Preserve the recorded customer figures when updating an old job margin.
+        return { ...job, summaryCache: oldKitchen || oldCaliwag || !cache
+          ? summary : { ...cache, netMarginPct: summary.netMarginPct } };
       } catch {
         return job;
       }
@@ -1254,8 +1358,9 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            savedJobs = parsed.map(refreshLegacySample);
-            updateSavedCountsUI();
+            savedJobs = parsed.map(migrateSavedJob);
+            if (savedJobs.some((job, i) => job !== parsed[i])) persistSavedJobs();
+            else updateSavedCountsUI();
             return;
           }
         }
@@ -1297,12 +1402,33 @@
       }
     }
 
+    function customLinesFor(job) {
+      if (Array.isArray(job.customLines)) return job.customLines;
+      if (!job.customScopeDesc && !job.customScopeRetail && !job.customScopeCogs) return [];
+      return [{ description: job.customScopeDesc || '', qty: 1, retail: job.customScopeRetail || 0, cogs: job.customScopeCogs || 0 }];
+    }
+
+    function todayLocal() {
+      const date = new Date();
+      return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    }
+
     function currentJobInputs() {
       return {
         projectName: document.getElementById('projectName').value.trim(),
         jobOrderNumber: document.getElementById('jobOrderNumber').value.trim(),
         customerContact: document.getElementById('customerContact').value.trim(),
         repName: document.getElementById('repName').value.trim(),
+        afJobNumber: document.getElementById('afJobNumber').value.trim(),
+        quoteDate: document.getElementById('quoteDate').value,
+        pricingVersion: state.pricingVersion,
+        edgeProfile: document.getElementById('edgeProfileSelect').value,
+        discountMode: document.getElementById('discountMode').value,
+        discountValue: document.getElementById('discountValue').validity.badInput ? NaN : Number(document.getElementById('discountValue').value),
+        discountReason: document.getElementById('discountReason').value.trim(),
+        shopLaborBase: Number(document.getElementById('shopLaborBase').value),
+        usableYieldPct: document.getElementById('usableYieldPct').valueAsNumber,
+        customLines: state.customLines,
         addonRateMode: state.addonRateMode,
         selectedTierId: state.selectedTierId,
         selectedColorIndex: state.selectedColorIndex,
@@ -1313,9 +1439,6 @@
         counterPieces: state.counterPieces,
         splashPieces: state.splashPieces,
         addonQuantities: state.addonQuantities,
-        customScopeDesc: document.getElementById('customScopeDesc').value.trim(),
-        customScopeRetail: parseFloat(document.getElementById('customScopeRetail').value) || 0,
-        customScopeCogs: parseFloat(document.getElementById('customScopeCogs').value) || 0,
         extraDirectTpiPreTax: parseFloat(document.getElementById('extraDirectTpiPreTax').value) || 0,
         extraDirectTpiCogs: parseFloat(document.getElementById('extraDirectTpiCogs').value) || 0
       };
@@ -1344,8 +1467,8 @@
 
     function canIssueQuote() {
       if (latestCalc) return true;
-      showToast('Correct the measurements before saving or sharing.');
-      document.querySelector('#counterPiecesList input:out-of-range, #splashPiecesList input:out-of-range')?.focus();
+      showToast('Check the highlighted estimate inputs before saving or sharing.');
+      document.querySelector('input:invalid')?.focus();
       return false;
     }
 
@@ -1368,44 +1491,12 @@
       showToast(`Saved "${snapshot.projectName}" (${formatCurrency(snapshot.summaryCache.finalTotalWithTax, 2)})`);
     }
 
-    function startNewEstimate() {
-      state.currentJobId = 'job_' + Date.now();
-      state.addonRateMode = 'target';
-      state.selectedTierId = 'tier1';
-      state.selectedColorIndex = 0; // Miami White
-      state.colorSearchQuery = '';
-      state.shopCardRate = 0.10;
-      state.shopCardOnFullBase = true;
-      state.manualTotalWithTax = null;
-
-      state.counterPieces = [
-        { id: uid(), name: 'Countertop Run 1', length: 96, width: 25.5 }
-      ];
-      state.splashPieces = [];
-      state.addonQuantities = getEmptyAddonQuantities();
-
-      document.getElementById('projectName').value = '';
-      document.getElementById('jobOrderNumber').value = '';
-      document.getElementById('customerContact').value = '';
-      document.getElementById('colorSearchInput').value = '';
-      document.getElementById('clearSearchBtn').classList.add('hidden');
-      document.getElementById('chkProtectionPlan').checked = true;
-      document.getElementById('customScopeDesc').value = '';
-      document.getElementById('customScopeRetail').value = '0';
-      document.getElementById('customScopeCogs').value = '0';
-      document.getElementById('extraDirectTpiPreTax').value = '0';
-      document.getElementById('extraDirectTpiCogs').value = '0';
-
-      setAddonRateMode('target');
-      setShopCardRate(0.10);
-      renderTierButtons();
-      renderColorDropdown();
-      renderCounterPieces();
-      renderSplashPieces();
-      renderAddons();
-      recalculate();
-      updateSavedCountsUI();
-      showToast('Started a fresh blank estimate');
+    function startNewEstimate(notify = true) {
+      applyEstimateSnapshot({
+        id: null, pricingVersion: PROGRAM_PRICING, addonRateMode: 'live', selectedTierId: 'tier1',
+        quoteDate: todayLocal(), edgeProfile: 'E1-Eased', shopLaborBase: 45
+      });
+      if (notify) showToast('Started a blank estimate');
     }
 
     function loadJobById(jobId) {
@@ -1418,6 +1509,8 @@
     }
 
     function applyEstimateSnapshot(job) {
+      state.pricingVersion = job.pricingVersion || 'original';
+      state.customLines = customLinesFor(job).map(line => ({ ...line }));
       state.currentJobId = job.id;
       state.addonRateMode = job.addonRateMode || 'target';
       state.selectedTierId = TIER_CATALOG[job.selectedTierId] ? job.selectedTierId : 'tier2';
@@ -1426,8 +1519,8 @@
       state.shopCardRate = job.shopCardRate || 0.10;
       state.shopCardOnFullBase = job.shopCardOnFullBase !== undefined ? job.shopCardOnFullBase : true;
       state.manualTotalWithTax = job.manualTotalWithTax !== undefined ? job.manualTotalWithTax : null;
-      state.counterPieces = JSON.parse(JSON.stringify(job.counterPieces || []));
-      state.splashPieces = JSON.parse(JSON.stringify(job.splashPieces || []));
+      state.counterPieces = (job.counterPieces || []).map(piece => ({ ...piece, id: uid() }));
+      state.splashPieces = (job.splashPieces || []).map(piece => ({ ...piece, id: uid() }));
 
       const mergedAddons = getEmptyAddonQuantities();
       if (job.addonQuantities) {
@@ -1444,9 +1537,15 @@
       document.getElementById('colorSearchInput').value = '';
       document.getElementById('clearSearchBtn').classList.add('hidden');
       document.getElementById('chkProtectionPlan').checked = job.includeProtection !== false;
-      document.getElementById('customScopeDesc').value = job.customScopeDesc || '';
-      document.getElementById('customScopeRetail').value = job.customScopeRetail || 0;
-      document.getElementById('customScopeCogs').value = job.customScopeCogs || 0;
+      document.getElementById('afJobNumber').value = job.afJobNumber || '';
+      document.getElementById('quoteDate').value = job.quoteDate || '';
+      document.getElementById('edgeProfileSelect').disabled = false;
+      document.getElementById('edgeProfileSelect').value = job.edgeProfile || '';
+      document.getElementById('discountMode').value = job.discountMode || 'none';
+      document.getElementById('discountValue').value = job.discountValue ?? 0;
+      document.getElementById('discountReason').value = job.discountReason || '';
+      document.getElementById('shopLaborBase').value = job.shopLaborBase ?? 50;
+      document.getElementById('usableYieldPct').value = job.usableYieldPct ?? 80;
       document.getElementById('extraDirectTpiPreTax').value = job.extraDirectTpiPreTax || 0;
       document.getElementById('extraDirectTpiCogs').value = job.extraDirectTpiCogs || 0;
 
@@ -1456,6 +1555,7 @@
       renderColorDropdown();
       renderCounterPieces();
       renderSplashPieces();
+      renderCustomLines();
       renderAddons();
       recalculate();
       updateSavedCountsUI();
@@ -1495,7 +1595,7 @@
       if (!Array.isArray(pieces)) return [];
       return pieces.filter(Boolean).map(piece => [
         piece.name || 'Unnamed piece',
-        `${parseFloat(piece.length) || 0} × ${parseFloat(piece[depthField]) || 0} in`
+        `${piece.qty ?? 1} × ${parseFloat(piece.length) || 0} × ${parseFloat(piece[depthField]) || 0} in`
       ]);
     }
 
@@ -1508,6 +1608,9 @@
       const billableArea = Number(cache.billableSf);
       const savedTotal = Number(cache.finalTotalWithTax);
       const details = [
+        ['Quote date', job.quoteDate],
+        ['ActionFlow #', job.afJobNumber],
+        ['Edge profile', job.edgeProfile],
         ['Job #', job.jobOrderNumber],
         ['Customer phone / email', job.customerContact],
         ['Estimator', job.repName],
@@ -1515,17 +1618,18 @@
         ['Material', material],
         ['Billable area', cache.billableSf != null && Number.isFinite(billableArea) ? `${billableArea.toFixed(2)} SF` : ''],
         ['Saved total (with tax)', cache.finalTotalWithTax != null && Number.isFinite(savedTotal) ? formatCurrency(savedTotal) : ''],
-        ['Custom scope', job.customScopeDesc]
+        ['Discount', job.discountMode && job.discountMode !== 'none' ? `${job.discountReason || 'Promotional discount'} · ${job.discountMode === 'percent' ? job.discountValue + '%' : formatCurrency(job.discountValue)}` : '']
       ].filter(([, value]) => value != null && value !== '');
 
       const addons = ADDON_GROUPS.flatMap(group => group.items)
         .filter(item => !(item.nonDektonOnly && job.selectedTierId === 'tier4') && Number(job.addonQuantities?.[item.id]) > 0)
-        .map(item => [item.name, `${job.addonQuantities[item.id]} ${item.unit}`]);
+        .map(item => [addonName(item, job.pricingVersion), `${job.addonQuantities[item.id]} ${item.unit}`]);
       const sections = [
         ['Estimate details', details],
         ['Countertop pieces', savedPieceDetails(job.counterPieces, 'width')],
         ['Backsplash pieces', savedPieceDetails(job.splashPieces, 'height')],
-        ['Add-ons', addons]
+        ['Add-ons', addons],
+        ['Custom scope', customLinesFor(job).map(line => [line.description || 'Custom scope', `${line.qty} × ${formatCurrency(line.retail)}`])]
       ].filter(([, rows]) => rows.length);
 
       document.getElementById('savedEstimateViewerTitle').textContent = job.projectName || 'Untitled Estimate';
@@ -1555,6 +1659,7 @@
         if (!query) return true;
         const hay = [
           j.projectName,
+          j.afJobNumber,
           j.jobOrderNumber,
           j.customerContact,
           j.repName,
@@ -1669,13 +1774,13 @@
     }
 
     function validateEditableEstimate(job) {
-      const textFields = ['projectName', 'jobOrderNumber', 'customerContact', 'repName', 'customScopeDesc'];
-      const numberFields = ['shopCardRate', 'customScopeRetail', 'customScopeCogs', 'extraDirectTpiPreTax', 'extraDirectTpiCogs'];
+      const textFields = ['projectName', 'jobOrderNumber', 'customerContact', 'repName'];
+      const numberFields = ['shopCardRate', 'extraDirectTpiPreTax', 'extraDirectTpiCogs'];
       const flagFields = ['shopCardOnFullBase', 'includeProtection'];
       const validFields = job && textFields.every(key => typeof job[key] === 'string') &&
         numberFields.every(key => Number.isFinite(job[key])) &&
         flagFields.every(key => typeof job[key] === 'boolean') &&
-        (job.manualTotalWithTax === null || Number.isFinite(job.manualTotalWithTax)) &&
+        (job.manualTotalWithTax === null || (Number.isFinite(job.manualTotalWithTax) && job.manualTotalWithTax >= 0)) &&
         ['target', 'live'].includes(job.addonRateMode);
 
       if (!validFields) throw new Error('The editable estimate is missing valid job details.');
@@ -1690,8 +1795,14 @@
       if (!validPieces(job.counterPieces, 'width') || !validPieces(job.splashPieces, 'height')) {
         throw new Error('The editable estimate contains invalid measurements.');
       }
+      const optionalText = ['afJobNumber', 'edgeProfile', 'quoteDate', 'discountReason', 'customScopeDesc'];
+      if (optionalText.some(key => job[key] != null && typeof job[key] !== 'string') ||
+          (job.pricingVersion != null && !['original', PROGRAM_PRICING].includes(job.pricingVersion)) ||
+          (job.customLines != null && !Array.isArray(job.customLines)) || !validJobOptions(job)) {
+        throw new Error('The estimate contains invalid pricing, quantities, or costs.');
+      }
       const addons = job.addonQuantities;
-      if (!addons || typeof addons !== 'object' || Array.isArray(addons) || !Object.values(addons).every(Number.isFinite)) {
+      if (!addons || typeof addons !== 'object' || Array.isArray(addons) || !Object.values(addons).every(n => Number.isFinite(n) && n >= 0)) {
         throw new Error('The editable estimate contains invalid add-on quantities.');
       }
     }
@@ -1699,16 +1810,21 @@
     function editablePdfQuote(job) {
       const text = id => document.getElementById(id).textContent;
       const { tier, billableStoneSf, includeProtection, customerStonePlusProtection, activeAddonLines } = latestCalc;
-      const installedRate = `$${tier.retailSf}/SF`;
-      const stoneDescription = `${billableStoneSf.toFixed(2)} SF @ ${installedRate}${includeProtection ? ' (includes 10-Yr Protection Plan)' : ''}`;
+      const rateLabel = `$${installedRate(tier, job.pricingVersion)}/SF`;
+      const stoneDescription = `${billableStoneSf.toFixed(2)} SF @ ${rateLabel}${includeProtection ? ' (includes 10-Yr Protection Plan)' : ''}`;
       return {
         projectName: job.projectName,
         jobOrderNumber: job.jobOrderNumber,
         logo: document.querySelector('#quoteCardLogo svg'),
         sections: [
+          { heading: 'Job details', rows: [
+            ['Quote date', job.quoteDate], ['ActionFlow #', job.afJobNumber],
+            ['Customer', job.customerContact], ['Estimator', job.repName]
+          ].filter(([, value]) => value) },
           { heading: 'Material & measurements', rows: [
             ['Selected surface', text('summaryColorName')],
-            ['Tier & installed rate', `${tier.shortName} • ${installedRate}`],
+            ['Tier & installed rate', `${tier.shortName} • ${rateLabel}`],
+            ...(job.edgeProfile ? [['Edge profile', job.edgeProfile]] : []),
             ['Measured area', text('summarySfBreakdown')],
             ['Billable area', text('summaryTotalBillableSf')],
           ] },
@@ -1717,19 +1833,20 @@
             ...activeAddonLines.map(line => [
               `${line.name} (${line.qty} ${line.unit})`, formatCurrency(line.retail),
             ]),
+            ...(latestCalc.discountAmount ? [[latestCalc.discountLabel, '-' + formatCurrency(latestCalc.discountAmount)]] : []),
             ['Pre-tax project subtotal', text('custPreTaxSubtotal')],
             ['Hawaii GET (4.712%)', text('custGetTax')],
             ['Final quote total (with tax)', text('custFinalTotalWithTax'), true],
           ] },
           { heading: 'Member payment schedule (80/20 split)', rows: [
             ['Due at Costco register (80% incl. GET)', text('custPayCostco80')],
-            ['Due to Top Priority Installation at completion (20% incl. GET)', text('custPayTpi20')],
+            ['Due to Top Priority, Inc. at completion (20% incl. GET)', text('custPayTpi20')],
           ] },
           { heading: 'Member benefit', rows: [
             [text('custShopCardLabel'), text('shopCardRebateDisplay')],
             ['Net effective cost after Shop Card', text('netEffectiveCostDisplay')],
           ] },
-        ],
+        ].filter(section => section.rows.length),
       };
     }
 
@@ -1771,12 +1888,7 @@
       try {
         const job = await window.TpiEstimatePdf.read(file);
         validateEditableEstimate(job);
-        applyEstimateSnapshot({
-          ...job,
-          id: null,
-          counterPieces: job.counterPieces.map(({ name, length, width }) => ({ id: uid(), name, length, width })),
-          splashPieces: job.splashPieces.map(({ name, length, height }) => ({ id: uid(), name, length, height })),
-        });
+        applyEstimateSnapshot({ ...job, id: null });
         setViewMode('customer');
         closeSavedJobsModal();
         showToast(`Opened "${job.projectName}" as a draft`);
@@ -1784,6 +1896,65 @@
         showToast(error instanceof Error ? error.message : 'Could not open the editable PDF.');
       } finally {
         button.disabled = false;
+      }
+    }
+
+    function saveEstimateJson() {
+      recalculate();
+      if (!canIssueQuote()) return;
+      const job = captureCurrentJobSnapshot();
+      const name = (job.jobOrderNumber || job.projectName).replace(/[^a-z0-9_-]+/gi, '-').slice(0, 72);
+      const blob = new Blob([JSON.stringify({ version: 'tpi-estimate-1', job }, null, 2)], { type: 'application/json' });
+      downloadFile(blob, `TPI-${name}-estimate.json`);
+    }
+
+    function readEstimateFile(data) {
+      if (data?.version === 'tpi-estimate-1') {
+        validateEditableEstimate(data.job);
+        return data.job;
+      }
+      if (data?.version !== 'tpi-costco-hawaii-v6') throw new Error('Choose a single estimate JSON file.');
+      const tier = Object.values(TIER_CATALOG).find(t => t.colors.some(c => c.id === data.selectedColorId));
+      if (!tier) throw new Error('The estimate contains an unknown material.');
+      const addonQuantities = getEmptyAddonQuantities();
+      const fileIds = new Set();
+      for (const group of ADDON_GROUPS) {
+        for (const item of group.items) {
+          if (!item.fileId) continue;
+          fileIds.add(item.fileId);
+          addonQuantities[item.id] = data.addonQtys?.[item.fileId] ?? 0;
+        }
+      }
+      if (!data.addonQtys || Object.entries(data.addonQtys).some(([key, qty]) => qty && !fileIds.has(key))) {
+        throw new Error('The estimate contains unrecognized add-ons.');
+      }
+      function pieces(rows, depth) {
+        if (!Array.isArray(rows)) throw new Error('Missing estimate measurements.');
+        return rows.map(row => ({ name: row.label, qty: row.qty ?? 1, length: row.lengthIn, [depth]: row[depth + 'In'] }));
+      }
+      const job = {
+        ...data, pricingVersion: PROGRAM_PRICING, addonRateMode: 'live', manualTotalWithTax: null,
+        selectedTierId: tier.id, selectedColorIndex: tier.colors.findIndex(c => c.id === data.selectedColorId),
+        counterPieces: pieces(data.counterPieces, 'width'), splashPieces: pieces(data.splashPieces, 'height'),
+        addonQuantities
+      };
+      validateEditableEstimate(job);
+      return job;
+    }
+
+    async function openEstimateJson(event) {
+      const input = event.currentTarget;
+      const file = input.files[0];
+      input.value = '';
+      if (!file) return;
+      try {
+        const job = readEstimateFile(JSON.parse(await file.text()));
+        applyEstimateSnapshot({ ...job, id: null });
+        setViewMode('customer');
+        closeSavedJobsModal();
+        showToast(`Opened "${job.projectName || 'Untitled Estimate'}" as a draft`);
+      } catch (error) {
+        showToast(error.message || 'Could not open the estimate file.');
       }
     }
 
@@ -1800,7 +1971,7 @@
             return;
           }
           let mergedCount = 0;
-          incoming.map(refreshLegacySample).forEach(job => {
+          incoming.map(migrateSavedJob).forEach(job => {
             if (!job || !job.id) return;
             const idx = savedJobs.findIndex(existing => existing.id === job.id);
             if (idx >= 0) {
@@ -1838,7 +2009,7 @@
             <div class="text-[11px] font-bold uppercase tracking-wider ${isSelected ? 'text-blue-200' : 'text-slate-500'}">
               ${tier.shortName} • ${tier.thicknessLabel}
             </div>
-            <div class="text-base font-extrabold mt-0.5">$${tier.retailSf}<span class="text-xs font-medium opacity-80">/SF</span></div>
+            <div class="text-base font-extrabold mt-0.5">$${installedRate(tier, state.pricingVersion)}<span class="text-xs font-medium opacity-80">/SF</span></div>
             <div class="text-[11px] truncate mt-0.5 ${isSelected ? 'text-blue-100' : 'text-slate-500'}">
               ${tier.name.split('– ')[1]}
             </div>
@@ -1869,7 +2040,7 @@
           });
 
         if (matchingColors.length > 0) {
-          html += `<optgroup label="${tier.name} ($${tier.retailSf}/SF | ${tier.thicknessLabel})">`;
+          html += `<optgroup label="${tier.name} ($${installedRate(tier, state.pricingVersion)}/SF | ${tier.thicknessLabel})">`;
           matchingColors.forEach(c => {
             const val = `${tier.id}:${c.idx}`;
             const isSelected = (tier.id === state.selectedTierId && c.idx === state.selectedColorIndex);
@@ -1899,7 +2070,13 @@
       const activeTier = TIER_CATALOG[state.selectedTierId];
       const activeColor = activeTier.colors[state.selectedColorIndex] || activeTier.colors[0];
 
-      document.getElementById('selectedTierPriceBadge').textContent = `$${activeTier.retailSf} / SF Installed`;
+      const edge = document.getElementById('edgeProfileSelect');
+      const isDekton = activeTier.id === 'tier4';
+      if (isDekton && !edge.disabled) edge.dataset.previous = edge.value;
+      if (isDekton) edge.value = 'Miter';
+      else if (edge.disabled) edge.value = edge.dataset.previous ?? 'E1-Eased';
+      edge.disabled = isDekton;
+      document.getElementById('selectedTierPriceBadge').textContent = `$${installedRate(activeTier, state.pricingVersion)} / SF Installed`;
       document.getElementById('materialSpecBadge').textContent = `${activeColor.brand} • ${activeColor.thickness} Jumbo Slab`;
       document.getElementById('slabCostDisplay').textContent = `$${activeColor.slabSfCost.toFixed(2)}/SF`;
     }
@@ -1919,23 +2096,29 @@
         const sf = pieceArea(p, 'width');
         return `
           <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-            <div class="col-span-12 sm:col-span-5">
+            <div class="col-span-12 sm:col-span-4">
               <input type="text" value="${escapeHtml(p.name)}"
                 onchange="updateCounterPiece('${p.id}', 'name', this.value)"
                 placeholder="Section ${index + 1}"
                 class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
-            <div class="col-span-4 sm:col-span-2">
+            <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Length (in)</label>
               <input type="number" step="0.25" min="0" value="${p.length}"
                 oninput="updateCounterPiece('${p.id}', 'length', this.validity.badInput ? NaN : this.value)"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
-            <div class="col-span-4 sm:col-span-2">
+            <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Width (in)</label>
               <input type="number" step="0.25" min="0" value="${p.width}"
                 oninput="updateCounterPiece('${p.id}', 'width', this.validity.badInput ? NaN : this.value)"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
+            </div>
+            <div class="col-span-2 sm:col-span-1">
+              <label class="block text-[10px] font-bold text-slate-500 sm:hidden">Qty</label>
+              <input type="number" aria-label="Piece quantity" step="1" min="0" value="${p.qty ?? 1}"
+                oninput="updateCounterPiece('${p.id}', 'qty', this.validity.badInput ? NaN : this.value)"
+                class="w-full px-1 py-2 rounded-lg border border-slate-300 text-center text-sm font-bold" />
             </div>
             <div class="col-span-3 sm:col-span-2 text-right">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Area</label>
@@ -1967,23 +2150,29 @@
         const sf = pieceArea(p, 'height');
         return `
           <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-            <div class="col-span-12 sm:col-span-5">
+            <div class="col-span-12 sm:col-span-4">
               <input type="text" value="${escapeHtml(p.name)}"
                 onchange="updateSplashPiece('${p.id}', 'name', this.value)"
                 placeholder="Splash Run ${index + 1}"
                 class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
-            <div class="col-span-4 sm:col-span-2">
+            <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Length (in)</label>
               <input type="number" step="0.5" min="0" value="${p.length}"
                 oninput="updateSplashPiece('${p.id}', 'length', this.validity.badInput ? NaN : this.value)"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
-            <div class="col-span-4 sm:col-span-2">
+            <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Height (in)</label>
               <input type="number" step="0.5" min="0" value="${p.height}"
                 oninput="updateSplashPiece('${p.id}', 'height', this.validity.badInput ? NaN : this.value)"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
+            </div>
+            <div class="col-span-2 sm:col-span-1">
+              <label class="block text-[10px] font-bold text-slate-500 ">Qty</label>
+              <input type="number" aria-label="Piece quantity" step="1" min="0" value="${p.qty ?? 1}"
+                oninput="updateSplashPiece('${p.id}', 'qty', this.validity.badInput ? NaN : this.value)"
+                class="w-full px-1 py-2 rounded-lg border border-slate-300 text-center text-sm font-bold" />
             </div>
             <div class="col-span-3 sm:col-span-2 text-right">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Area</label>
@@ -2004,10 +2193,54 @@
       return mode === 'live' ? item.retailLive : item.retailTarget;
     }
 
+    function renderCustomLines() {
+      document.getElementById('customLines').innerHTML = state.customLines.map((line, index) => `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-xl border bg-slate-50 p-3">
+          <label class="estimate-label col-span-2 sm:col-span-3">Description
+            <input class="estimate-input" value="${escapeHtml(line.description)}" oninput="updateCustomLine(${index}, 'description', this)">
+          </label>
+          <button class="text-xs font-semibold text-slate-600" type="button" onclick="removeCustomLine(${index})">Remove line</button>
+          ${[['qty', 'Quantity'], ['retail', 'Unit retail ($)'], ['cogs', 'Unit internal cost ($)']]
+            .filter(([key]) => key !== 'cogs' || state.viewMode !== 'customer')
+            .map(([key, label]) => `<label class="estimate-label">${label}
+              <input class="estimate-input" type="number" step="any" min="0" value="${Number(line[key])}"
+                oninput="updateCustomLine(${index}, '${key}', this)">
+            </label>`).join('')}
+        </div>`).join('');
+    }
+
+    function addCustomLine() {
+      state.customLines.push({ description: '', qty: 1, retail: 0, cogs: 0 });
+      renderCustomLines();
+      recalculate();
+    }
+
+    function removeCustomLine(index) {
+      state.customLines.splice(index, 1);
+      renderCustomLines();
+      recalculate();
+    }
+
+    function updateCustomLine(index, key, input) {
+      state.customLines[index][key] = key === 'description' ? input.value :
+        (input.validity.badInput ? NaN : Number(input.value));
+      recalculate();
+    }
+
     function renderAddons() {
       const container = document.getElementById('addonsContainer');
       const isDekton = state.selectedTierId === 'tier4';
       const showInternalCogs = state.viewMode !== 'customer';
+      const program = state.pricingVersion === PROGRAM_PRICING;
+      document.getElementById('pricingDescription').textContent = program
+        ? 'November program pricing. Select a rate mode for add-on retail prices.'
+        : 'This estimate uses the original pricing schedule.';
+      document.getElementById('btnRateLive').textContent = program ? 'Costco Program Rates' : 'Live Sheet Rates';
+      document.getElementById('counterInstructions').textContent = program
+        ? 'Area = length × width × quantity ÷ 144. Include waterfall leg dimensions here and select waterfall labor below.'
+        : 'Area = length × width × quantity ÷ 144. Original pricing adds 7 SF of stone cost per waterfall panel.';
+      document.getElementById('addWaterfallLeg').hidden = !program;
+      document.getElementById('protectionCogsBadge').textContent = 'COGS: ' + formatCurrency(program ? 199 : PROTECTION_PLAN_COGS);
 
       document.getElementById('dektonMiterNotice').classList.toggle('hidden', !isDekton);
 
@@ -2019,7 +2252,7 @@
           const activeRetail = getAddonRetail(item);
 
           const subTag = showInternalCogs
-            ? `<span class="text-[11px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded ml-1.5">Sub: $${item.cogs.toFixed(2)}</span>`
+            ? `<span class="text-[11px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded ml-1.5">Sub: $${addonCost(item, state.pricingVersion).toFixed(2)}</span>`
             : '';
 
           const autoFillBtn = item.hasAutoFillSf
@@ -2036,13 +2269,15 @@
             }">
               <div class="min-w-0 flex-1">
                 <div class="text-xs sm:text-sm font-semibold text-slate-800">
-                  ${item.name}${item.retired ? ' (previously quoted)' : ''}
+                  ${addonName(item, state.pricingVersion)}${item.retired ? ' (previously quoted)' : ''}
                 </div>
                 <div class="text-xs text-slate-500 flex flex-wrap items-center mt-0.5">
                   <span class="font-bold text-slate-800">$${activeRetail.toLocaleString()}</span>
                   <span class="mx-1">/</span>
                   <span>${item.unit}</span>
                   ${subTag}
+                  ${item.firstIncluded ? '<span class="ml-1 font-semibold">First cutout included</span>' : ''}
+                  ${item.id === 'miterEdge' && !isDekton && !qty && document.getElementById('edgeProfileSelect').value === 'Miter' ? '<span class="font-semibold text-amber-800">Enter the upgraded miter length in LF.</span>' : ''}
                   ${autoFillBtn}
                 </div>
               </div>
@@ -2096,7 +2331,7 @@
       const panelMgr = document.getElementById('managerPanel');
 
       const slabPill = document.getElementById('internalSlabCostPill');
-      const customCogsWrap = document.getElementById('customScopeCogsWrapper');
+      renderCustomLines();
       const protCogsBadge = document.getElementById('protectionCogsBadge');
       const mobileMarginTag = document.getElementById('mobileBarMarginTag');
       const mobileRebateTag = document.getElementById('mobileBarRebateTag');
@@ -2116,7 +2351,6 @@
         panelCust.classList.remove('hidden');
         slabPill.classList.add('hidden');
         slabPill.classList.remove('flex');
-        customCogsWrap.classList.add('hidden');
         protCogsBadge.classList.add('hidden');
         mobileMarginTag.classList.add('hidden');
         mobileRebateTag.classList.remove('hidden');
@@ -2126,7 +2360,6 @@
         panelSplit.classList.remove('hidden');
         slabPill.classList.remove('hidden');
         slabPill.classList.add('flex');
-        customCogsWrap.classList.remove('hidden');
         protCogsBadge.classList.remove('hidden');
         mobileMarginTag.classList.remove('hidden');
         mobileRebateTag.classList.add('hidden');
@@ -2136,7 +2369,6 @@
         panelMgr.classList.remove('hidden');
         slabPill.classList.remove('hidden');
         slabPill.classList.add('flex');
-        customCogsWrap.classList.remove('hidden');
         protCogsBadge.classList.remove('hidden');
         mobileMarginTag.classList.remove('hidden');
         mobileRebateTag.classList.add('hidden');
@@ -2157,6 +2389,8 @@
       const btnTarget = document.getElementById('btnRateTarget');
       const btnLive = document.getElementById('btnRateLive');
       if (btnTarget && btnLive) {
+        btnTarget.setAttribute('aria-pressed', String(mode === 'target'));
+        btnLive.setAttribute('aria-pressed', String(mode === 'live'));
         if (mode === 'target') {
           btnTarget.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-sm';
           btnLive.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:bg-white';
@@ -2259,9 +2493,9 @@
       recalculate();
     }
 
-    function clearAllPieces() {
-      state.counterPieces = [];
-      state.splashPieces = [];
+    function clearPieces(kind) {
+      if (kind === 'counter') state.counterPieces = [];
+      else state.splashPieces = [];
       renderCounterPieces();
       renderSplashPieces();
       recalculate();
@@ -2309,10 +2543,11 @@
     function autoFillDemoSf(id) {
       if (!canIssueQuote()) return;
       const counterSf = latestCalc.counterSf;
-      state.addonQuantities[id] = Math.round(counterSf);
+      const demoSf = state.pricingVersion === PROGRAM_PRICING ? Math.ceil(counterSf) : Math.round(counterSf);
+      state.addonQuantities[id] = demoSf;
       renderAddons();
       recalculate();
-      showToast(`Synced ${Math.round(counterSf)} SF from countertops`);
+      showToast(`Synced ${demoSf} SF from countertops`);
     }
 
     function applyTestPreset(amount) {
@@ -2328,7 +2563,7 @@
     function handleManualTotalInput(val) {
       const num = parseFloat(val);
       const syncBtn = document.getElementById('btnSyncFromEstimator');
-      if (isNaN(num) || val.trim() === '') {
+      if (isNaN(num) || num < 0 || val.trim() === '') {
         state.manualTotalWithTax = null;
         if (syncBtn) syncBtn.classList.add('hidden');
       } else {
@@ -2385,10 +2620,24 @@
       const length = Number(piece.length);
       const depth = Number(piece[depthField]);
       if (!Number.isFinite(length) || !Number.isFinite(depth) || length < 0 || depth < 0) return NaN;
-      return length * depth / 144;
+      const qty = piece.qty ?? 1;
+      if (!Number.isSafeInteger(qty) || qty < 0) return NaN;
+      return length * depth * qty / 144;
+    }
+
+    function validJobOptions(job) {
+      const between = (n, low, high) => Number.isFinite(n) && n >= low && n <= high;
+      return [45, 50].includes(job.shopLaborBase ?? 50) &&
+        between(job.usableYieldPct ?? 80, 40, 100) &&
+        ['none', 'percent', 'fixed'].includes(job.discountMode ?? 'none') &&
+        (job.discountMode === 'none' || between(job.discountValue ?? 0, 0, Infinity)) &&
+        customLinesFor(job).every(line => line && typeof line.description === 'string' &&
+          [line.qty, line.retail, line.cogs].every(n => Number.isFinite(n) && n >= 0));
     }
 
     function calculateEstimate(job) {
+      if (!validJobOptions(job)) return null;
+      const program = job.pricingVersion === PROGRAM_PRICING;
       const tier = TIER_CATALOG[job.selectedTierId];
       const color = tier.colors[job.selectedColorIndex] || tier.colors[0];
       const isDekton = tier.id === 'tier4';
@@ -2397,10 +2646,10 @@
       const billableStoneSf = counterSf + splashSf;
       if (!Number.isFinite(billableStoneSf)) return null;
 
-      const includeProtection = job.includeProtection;
+      const includeProtection = job.includeProtection && (!program || billableStoneSf > 0);
       const protectionRetail = includeProtection ? PROTECTION_PLAN_RETAIL : 0;
-      const protectionCogs = includeProtection ? PROTECTION_PLAN_COGS : 0;
-      const customerStonePlusProtection = roundMoney(billableStoneSf * tier.retailSf + protectionRetail);
+      const protectionCogs = includeProtection ? (program ? 199 : PROTECTION_PLAN_COGS) : 0;
+      const customerStonePlusProtection = roundMoney(billableStoneSf * installedRate(tier, job.pricingVersion) + protectionRetail);
 
       let extraNetSlabSf = 0;
       const activeAddonLines = [];
@@ -2411,13 +2660,13 @@
           const qty = disabled ? 0 : (job.addonQuantities[item.id] || 0);
           if (qty > 0) {
             const unitRetail = getAddonRetail(item, job.addonRateMode);
-            const lineRetail = roundMoney(qty * unitRetail);
-            const lineCogs = roundMoney(qty * item.cogs);
-            if (item.addsNetSf) {
+            const lineRetail = roundMoney((item.firstIncluded ? Math.max(0, qty - 1) : qty) * unitRetail);
+            const lineCogs = roundMoney(qty * addonCost(item, job.pricingVersion));
+            if (!program && item.addsNetSf) {
               extraNetSlabSf += qty * item.addsNetSf;
             }
             activeAddonLines.push({
-              name: item.name,
+              name: addonName(item, job.pricingVersion) + (item.firstIncluded ? ' (first included)' : ''),
               qty,
               unit: item.unit,
               retail: lineRetail,
@@ -2427,16 +2676,15 @@
         });
       });
 
-      const customRetail = roundMoney(job.customScopeRetail);
-      const customCogs = roundMoney(job.customScopeCogs);
       const allCogsLines = [...activeAddonLines];
-      if (customRetail || customCogs) {
+      for (const custom of customLinesFor(job)) {
+        if (!custom.qty) continue;
         const line = {
-          name: job.customScopeDesc || 'Custom scope', qty: 1, unit: 'Job',
-          retail: customRetail, cogs: customCogs
+          name: custom.description.trim() || 'Custom scope', qty: custom.qty, unit: 'Each',
+          retail: roundMoney(custom.qty * custom.retail), cogs: roundMoney(custom.qty * custom.cogs)
         };
-        if (customRetail) activeAddonLines.push(line);
-        allCogsLines.push(line);
+        if (line.retail || (program && custom.description.trim() && !line.cogs)) activeAddonLines.push(line);
+        if (line.cogs) allCogsLines.push(line);
       }
       const extraDirectPreTax = roundMoney(job.extraDirectTpiPreTax);
       const extraDirectCogs = roundMoney(job.extraDirectTpiCogs);
@@ -2444,7 +2692,17 @@
         allCogsLines.push({ name: 'Extra Direct TPI Sub/COGS', qty: 1, unit: 'Job', cogs: extraDirectCogs });
       }
 
-      const estimatorPreTaxSubtotal = roundMoney(activeAddonLines.reduce((sum, line) => sum + line.retail, customerStonePlusProtection));
+      const grossSubtotal = roundMoney(activeAddonLines.reduce((sum, line) => sum + line.retail, customerStonePlusProtection));
+      let discountAmount = 0;
+      let discountLabel = job.discountReason?.trim() || 'Promotional discount';
+      if (job.discountMode === 'percent') {
+        const pct = Math.min(100, job.discountValue || 0);
+        discountAmount = roundMoney(grossSubtotal * pct / 100);
+        discountLabel += ` (${pct}%)`;
+      } else if (job.discountMode === 'fixed') {
+        discountAmount = roundMoney(Math.min(grossSubtotal, job.discountValue || 0));
+      }
+      const estimatorPreTaxSubtotal = roundMoney(grossSubtotal - discountAmount);
       const estimatorGetTax = roundMoney(estimatorPreTaxSubtotal * HAWAII_GET_RATE);
       const estimatorTotalWithTax = roundMoney(estimatorPreTaxSubtotal + estimatorGetTax);
       const custPayCostco80 = costcoShare(estimatorTotalWithTax);
@@ -2466,17 +2724,19 @@
       const costcoMarginDed = roundMoney(omsEntryPreTax * COSTCO_OMS_MARGIN_RATE);
       const shopCardBasisAmount = job.shopCardOnFullBase ? baseSubTotalPreTax : omsEntryPreTax;
       const shopCardDed = roundMoney(shopCardBasisAmount * job.shopCardRate);
-      const cardMailingFee = COSTCO_CARD_MAILING_FEE;
+      const cardMailingFee = program && finalQuoteWithTax === 0 ? 0 : COSTCO_CARD_MAILING_FEE;
       const netCashPayoutFromCostco = roundMoney(omsEntryPreTax - costcoMarginDed - shopCardDed - cardMailingFee);
       const totalBizNetRevenuePreTax = roundMoney(netCashPayoutFromCostco + tpiInstallBasePreTax + extraDirectPreTax);
 
       const netStonePlusWfSf = billableStoneSf + extraNetSlabSf;
-      const grossYieldSf = netStonePlusWfSf / USABLE_YIELD;
+      const grossYieldSf = netStonePlusWfSf / ((job.usableYieldPct ?? 80) / 100);
       const exactSlabs = grossYieldSf / JUMBO_SLAB_SF;
       const slabsNeeded = Math.ceil(exactSlabs);
       const remnantSf = Math.max(0, slabsNeeded * JUMBO_SLAB_SF - grossYieldSf);
       const materialCogs = roundMoney(grossYieldSf * color.slabSfCost);
-      const shopLaborCogs = roundMoney(billableStoneSf * tier.shopLaborSf);
+      const defaultLaborRate = program ? (isDekton ? 75 : 45) : tier.shopLaborSf;
+      const laborRate = job.shopLaborBase == null ? defaultLaborRate : job.shopLaborBase + (isDekton ? 30 : 0);
+      const shopLaborCogs = roundMoney(billableStoneSf * laborRate);
       const subcontractorCosts = allCogsLines.reduce((sum, line) => sum + line.cogs, 0);
       const totalJobCogs = roundMoney(materialCogs + shopLaborCogs + protectionCogs + subcontractorCosts);
       const shopGrossProfit = roundMoney(totalBizNetRevenuePreTax - totalJobCogs);
@@ -2486,6 +2746,7 @@
 
       return {
         tier, color, counterSf, splashSf, billableStoneSf, includeProtection, protectionCogs,
+        grossSubtotal, discountAmount, discountLabel, laborRate,
         customerStonePlusProtection, activeAddonLines, allCogsLines, estimatorPreTaxSubtotal,
         estimatorGetTax, estimatorTotalWithTax, custPayCostco80, custPayTpi20, memberShopCardRebate,
         memberNetEffectiveCost, finalQuoteWithTax, baseSubTotalPreTax, totalPaidToCostco,
@@ -2493,18 +2754,23 @@
         tpiHawaiiGet, costcoMarginDed, shopCardDed, cardMailingFee, netCashPayoutFromCostco,
         totalBizNetRevenuePreTax, netStonePlusWfSf, grossYieldSf, exactSlabs, slabsNeeded, remnantSf,
         materialCogs, shopLaborCogs, totalJobCogs, shopGrossProfit, trueNetMarginPct,
+        afJobNumber: job.afJobNumber, quoteDate: job.quoteDate, edgeProfile: job.edgeProfile,
         shopCardRate: job.shopCardRate, projectName: job.projectName || 'Costco Member Estimate'
       };
     }
 
     function recalculate() {
       const job = currentJobInputs();
+      const discountOn = job.discountMode !== 'none';
+      document.getElementById('discountValueField').hidden = !discountOn;
+      document.getElementById('discountReasonField').hidden = !discountOn;
+      document.getElementById('discountValueLabel').textContent = job.discountMode === 'percent' ? 'Discount (%) · up to 100%' : 'Amount ($)';
       latestCalc = calculateEstimate(job);
       document.body.classList.toggle('invalid-measurements', !latestCalc);
       const counterDisplay = document.getElementById('counterTotalSfDisplay');
       const splashDisplay = document.getElementById('splashTotalSfDisplay');
       if (!latestCalc) {
-        counterDisplay.textContent = splashDisplay.textContent = 'Check measurements';
+        counterDisplay.textContent = splashDisplay.textContent = document.getElementById('combinedArea').textContent = 'Check inputs';
         return;
       }
       const {
@@ -2517,7 +2783,26 @@
         slabsNeeded, remnantSf, materialCogs, shopLaborCogs, totalJobCogs, shopGrossProfit, trueNetMarginPct
       } = latestCalc;
       const projectName = job.projectName || 'Costco Member Estimate';
-      const jobNum = job.jobOrderNumber;
+      const jobMeta = [job.jobOrderNumber && 'Centah # ' + job.jobOrderNumber,
+        job.afJobNumber && 'ActionFlow # ' + job.afJobNumber, job.quoteDate].filter(Boolean).join(' · ');
+      document.getElementById('officeJobMeta').textContent = [projectName, jobMeta].filter(Boolean).join(' · ');
+      document.getElementById('quoteContacts').textContent = [job.customerContact, job.repName && 'Estimator: ' + job.repName].filter(Boolean).join(' · ');
+      document.getElementById('summaryEdge').textContent = job.edgeProfile ? 'Edge: ' + job.edgeProfile : '';
+      const discountText = latestCalc.discountAmount ? latestCalc.discountLabel + ': −' + formatCurrency(latestCalc.discountAmount) : '';
+      const customerDiscount = document.getElementById('customerDiscount');
+      customerDiscount.hidden = !discountText;
+      customerDiscount.textContent = discountText;
+      document.getElementById('managerDiscount').textContent = discountText && job.manualTotalWithTax == null
+        ? 'Before discount: ' + formatCurrency(latestCalc.grossSubtotal) + ' · ' + discountText : '';
+      document.getElementById('mgrYieldBadge').textContent = job.usableYieldPct + '% yield';
+      document.getElementById('splitCardFee').textContent = '−' + formatCurrency(cardMailingFee);
+      document.getElementById('printContractTotal').textContent = formatCurrency(finalQuoteWithTax);
+      document.getElementById('printContractBase').textContent = formatCurrency(baseSubTotalPreTax);
+      document.getElementById('printDirectCharges').textContent = formatCurrency(extraDirectPreTax);
+      document.getElementById('printDirectCosts').textContent = formatCurrency(job.extraDirectTpiCogs);
+      document.getElementById('splitContractTax').textContent = formatCurrency(finalQuoteWithTax - baseSubTotalPreTax);
+      document.getElementById('splitCashWithTax').textContent = formatCurrency(netCashPayoutFromCostco + totalBillActionFlow);
+      document.getElementById('combinedArea').textContent = formatPieceArea(billableStoneSf);
       counterDisplay.textContent = `${counterSf.toFixed(2)} SF`;
       splashDisplay.textContent = `${splashSf.toFixed(2)} SF`;
       const manualInputEl = document.getElementById('manualTotalOverrideInput');
@@ -2525,7 +2810,7 @@
       document.getElementById('btnSyncFromEstimator').classList.toggle('hidden', job.manualTotalWithTax == null);
 
       // Update Customer View DOM
-      document.getElementById('summaryJobMeta').textContent = jobNum ? `Costco Member Estimate • ${jobNum}` : 'Costco Member Estimate';
+      document.getElementById('summaryJobMeta').textContent = jobMeta || 'Costco Member Estimate';
       document.getElementById('summaryProjectTitle').textContent = projectName;
       document.getElementById('summaryTierBadge').textContent = tier.shortName;
       document.getElementById('summaryColorName').textContent = `${color.name} (${color.thickness} ${color.brand.split(' (')[0]})`;
@@ -2599,7 +2884,7 @@
 
       document.getElementById('mgrMatCogsLabel').textContent = `Material COGS (${grossYieldSf.toFixed(1)} SF @ $${color.slabSfCost.toFixed(2)}):`;
       document.getElementById('mgrMatCogs').textContent = formatCurrency(materialCogs, 2);
-      document.getElementById('mgrLaborCogsLabel').textContent = `Shop Fab & Install Labor ($${tier.shopLaborSf}/SF):`;
+      document.getElementById('mgrLaborCogsLabel').textContent = `Shop Fab & Install Labor ($${latestCalc.laborRate}/SF):`;
       document.getElementById('mgrLaborCogs').textContent = formatCurrency(shopLaborCogs, 2);
 
       const mgrSubLinesEl = document.getElementById('mgrSubcontractorLines');
@@ -2618,7 +2903,7 @@
       document.getElementById('mgrTotalCogs').textContent = formatCurrency(totalJobCogs, 2);
 
       document.getElementById('mgrPreTaxSubtotal').textContent = formatCurrency(baseSubTotalPreTax, 2);
-      document.getElementById('mgrCostcoDeductionsLabel').textContent = `Costco Deductions (10% OMS + ${pctInt}% Card + $1.87):`;
+      document.getElementById('mgrCostcoDeductionsLabel').textContent = `Costco Deductions (10% OMS + ${pctInt}% Card + ${formatCurrency(cardMailingFee)}):`;
       document.getElementById('mgrCostcoDeductions').textContent = `-${formatCurrency(costcoMarginDed + shopCardDed + cardMailingFee, 2)}`;
       document.getElementById('mgrNetBizRev').textContent = formatCurrency(totalBizNetRevenuePreTax, 2);
 
@@ -2634,12 +2919,23 @@
         mgrBadge.className = 'text-xs font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30';
       }
 
+      if (job.pricingVersion === PROGRAM_PRICING) {
+        const health = trueNetMarginPct >= 30 ? 'Healthy (≥30%)' : trueNetMarginPct >= 20 ? 'Moderate (20–<30%)' : 'Low (<20%)';
+        for (const badge of [mgrBadge, splitBadge]) {
+          if (totalBizNetRevenuePreTax > 0) {
+            badge.textContent = health + ' · ' + badge.textContent;
+          } else {
+            badge.textContent = 'Awaiting revenue';
+          }
+        }
+        if (totalBizNetRevenuePreTax <= 0) splitWarn.classList.add('hidden');
+      }
       const customerView = state.viewMode === 'customer';
       const officeTotal = roundMoney(totalPaidToCostco + totalBillActionFlow);
       document.getElementById('mobileBarGross').textContent = formatCurrency(customerView ? estimatorTotalWithTax : officeTotal);
       document.getElementById('mobileBar80').textContent = formatCurrency(customerView ? custPayCostco80 : totalPaidToCostco);
       document.getElementById('mobileBar20').textContent = formatCurrency(customerView ? custPayTpi20 : totalBillActionFlow);
-      document.getElementById('mobileBarRebateTag').textContent = `Card: -${formatCurrency(memberShopCardRebate)}`;
+      document.getElementById('mobileBarRebateTag').textContent = `Card: -${formatCurrency(memberShopCardRebate)} · Net: ${formatCurrency(memberNetEffectiveCost)}`;
       document.getElementById('mobileBarMarginTag').textContent = `Margin: ${formatMargin(trueNetMarginPct)}`;
       document.getElementById('mgrExtraDirectRow').hidden = !extraDirectPreTax;
       document.getElementById('mgrExtraDirect').textContent = formatCurrency(extraDirectPreTax);
@@ -2648,6 +2944,14 @@
     // =========================================================================
     // 6. CLIPBOARD, TOAST & FORMATTING HELPERS
     // =========================================================================
+    function printEstimate(office) {
+      if (!canIssueQuote()) return;
+      document.body.classList.toggle('office-print', office);
+      window.print();
+    }
+
+    window.addEventListener('afterprint', () => document.body.classList.remove('office-print'));
+
     function copyQuoteToClipboard() {
       if (!canIssueQuote()) return;
       const c = latestCalc;
@@ -2658,25 +2962,29 @@
 
       const lines = [
         `COSTCO HAWAII COUNTERTOP & BATH ESTIMATE`,
-        `Top Priority Installation (TPI)`,
+        `Top Priority, Inc. · 94-240 Pupuole St. Waipahu, HI 96797 · (808) 638-3838 · www.toppriorityhawaii.com`,
         `Project: ${c.projectName}`,
         jobNum ? `Costco / Centah Job #: ${jobNum}` : null,
+        c.quoteDate ? `Quote date: ${c.quoteDate}` : null,
+        c.afJobNumber ? `ActionFlow #: ${c.afJobNumber}` : null,
         contact ? `Customer: ${contact}` : null,
         rep ? `Estimator: ${rep}` : null,
         `----------------------------------------`,
         `Surface: ${c.color.name} (${c.color.thickness} ${c.color.brand.split(' (')[0]})`,
+        c.edgeProfile ? `Edge: ${c.edgeProfile}` : null,
         `Tier: ${c.tier.name}`,
         `Area: ${c.counterSf.toFixed(2)} SF Counters + ${c.splashSf.toFixed(2)} SF Splash = ${c.billableStoneSf.toFixed(2)} SF`,
         `Installed Countertops${c.includeProtection ? ' (incl. 10-Yr Protection Plan)' : ''}`,
         ...c.activeAddonLines.map(a => `${a.name} (${a.qty} ${a.unit})`),
         `----------------------------------------`,
+        c.discountAmount ? `${c.discountLabel}: -${formatCurrency(c.discountAmount)}` : null,
         `Pre-Tax Subtotal: ${formatCurrency(c.estimatorPreTaxSubtotal, 2)}`,
         `Hawaii GET (4.712%): ${formatCurrency(c.estimatorGetTax, 2)}`,
         `FINAL QUOTE TOTAL (WITH TAX): ${formatCurrency(c.estimatorTotalWithTax, 2)}`,
         ``,
         `PAYMENT SCHEDULE (80/20 SPLIT):`,
         `1. Due at Costco Register (80% incl. GET): ${formatCurrency(c.custPayCostco80, 2)}`,
-        `2. Due to Top Priority Installation at Completion (20% incl. GET): ${formatCurrency(c.custPayTpi20, 2)}`,
+        `2. Due to Top Priority, Inc. at Completion (20% incl. GET): ${formatCurrency(c.custPayTpi20, 2)}`,
         ``,
         `MEMBER BENEFIT:`,
         `${pctInt}% Costco Shop Card Rebate: -${formatCurrency(c.memberShopCardRebate, 2)}`,
@@ -2699,6 +3007,8 @@
         rep ? `Estimator: ${rep}` : null,
         `----------------------------------------`,
         `1. FINAL QUOTE (TOTAL WITH 4.712% TAX): ${formatCurrency(c.finalQuoteWithTax, 2)}`,
+        c.afJobNumber ? `ActionFlow #: ${c.afJobNumber}` : null,
+        c.quoteDate ? `Quote date: ${c.quoteDate}` : null,
         `2. BASE SUB-TOTAL (PRE-TAX): ${formatCurrency(c.baseSubTotalPreTax, 2)}`,
         ``,
         `SECTION A — THE COSTCO PORTION (80% - CENTAH OMS)`,
@@ -2718,6 +3028,7 @@
         ``,
         `SECTION C — TOTAL REVENUE & PROFIT CHECK`,
         `Total Business Net Revenue (Pre-Tax): ${formatCurrency(c.totalBizNetRevenuePreTax, 2)}`,
+        `Net cash including direct TPI GET: ${formatCurrency(c.netCashPayoutFromCostco + c.totalBillActionFlow)}`,
         `Total Job COGS: -${formatCurrency(c.totalJobCogs, 2)}`,
         `Job profit after entered costs: ${formatCurrency(c.shopGrossProfit, 2)} (${formatMargin(c.trueNetMarginPct)} margin)`
       ].filter(line => line !== null);
@@ -2774,17 +3085,9 @@
     // 7. INITIALIZE ON PAGE LOAD
     // =========================================================================
     window.addEventListener('DOMContentLoaded', () => {
-      initDefaultState();
       loadSavedJobsFromStorage();
-      setAddonRateMode('target');
-      setShopCardRate(0.10);
-      renderTierButtons();
-      renderColorDropdown();
-      renderCounterPieces();
-      renderSplashPieces();
-      renderAddons();
-      recalculate();
-      updateSavedCountsUI();
+      startNewEstimate(false);
+      setViewMode('customer');
     });
   </script>
 </body>

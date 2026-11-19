@@ -93,7 +93,7 @@
       context.fillText('Costco Member Estimate', headerX, 42);
       context.fillStyle = '#c8e0f5';
       setFont(500, 11);
-      context.fillText('Top Priority Installation', headerX, 61);
+      context.fillText('Top Priority, Inc.', headerX, 61);
       context.textAlign = 'right';
       setFont(700, 9);
       context.fillText('EDITABLE WORK COPY', pageWidth - margin, 42);
@@ -169,7 +169,7 @@
   }
 
   async function create(job, quote) {
-    const data = new TextEncoder().encode(JSON.stringify({ format, version: 1, job }));
+    const data = new TextEncoder().encode(JSON.stringify({ format, version: 2, job }));
     if (data.length > maxAttachmentBytes) {
       throw new Error('This estimate is too large for an editable PDF.');
     }
@@ -232,7 +232,7 @@
       throw new Error('Could not read the estimate PDF. Try the original editable work copy.');
     }
     if (payload?.format !== format) throw new Error('Choose a PDF made with Save Editable PDF.');
-    if (payload.version !== 1) throw new Error('This PDF uses an unsupported estimate version.');
+    if (![1, 2].includes(payload.version)) throw new Error('This PDF uses an unsupported estimate version.');
     return payload.job;
   }
 

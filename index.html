@@ -65,6 +65,10 @@
     .invalid-measurements #measurementWarning { display: block; }
     .invalid-measurements #customerPanel, .invalid-measurements #splitPanel,
     .invalid-measurements #managerPanel, .invalid-measurements #mobileStickyBar { display: none !important; }
+    @media screen {
+      .editing-invalid-yield #managerPanel { display: block !important; }
+      .editing-invalid-yield #measurementWarning { display: none; }
+    }
     #counterPiecesList input:out-of-range, #splashPiecesList input:out-of-range { outline: 2px solid #b91c1c; }
     @media print {
       body {
@@ -951,7 +955,8 @@
                 <small>Dekton adds $30/SF</small>
               </label>
               <label class="estimate-label">Usable slab yield (%)
-                <input class="estimate-input" type="number" min="40" max="100" step="any" id="usableYieldPct" required value="80" oninput="recalculate()">
+                <input class="estimate-input" type="number" min="40" max="100" step="any" id="usableYieldPct" required value="80" aria-describedby="yieldEditHint" oninput="recalculate()">
+                <small id="yieldEditHint" class="text-amber-300" hidden>Enter 40% to 100%. The audit shows the last calculated figures until the entry is valid.</small>
               </label>
             </div>
             <!-- Slab Yield & Boneyard Calculator -->
@@ -2767,6 +2772,9 @@
       document.getElementById('discountValueLabel').textContent = job.discountMode === 'percent' ? 'Discount (%) · up to 100%' : 'Amount ($)';
       latestCalc = calculateEstimate(job);
       document.body.classList.toggle('invalid-measurements', !latestCalc);
+      const invalidYield = !document.getElementById('usableYieldPct').validity.valid;
+      document.body.classList.toggle('editing-invalid-yield', state.viewMode === 'manager' && invalidYield);
+      document.getElementById('yieldEditHint').hidden = !invalidYield;
       const counterDisplay = document.getElementById('counterTotalSfDisplay');
       const splashDisplay = document.getElementById('splashTotalSfDisplay');
       if (!latestCalc) {

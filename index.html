@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script>
-    tailwind.config = {
+    if (window.tailwind) window.tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
@@ -1093,7 +1093,6 @@
         name: 'Tier 1 – VALUE',
         shortName: 'Tier 1',
         retailSf: 160,
-        shopLaborSf: 50,
         thicknessLabel: '2 cm',
         colors: [
           { id: 's-miami-white', name: 'Miami White', brand: 'Silestone (Quartz Group A)', thickness: '2 cm', slabSfCost: 16.98 },
@@ -1114,7 +1113,6 @@
         name: 'Tier 2 – CORE',
         shortName: 'Tier 2',
         retailSf: 189,
-        shopLaborSf: 50,
         thicknessLabel: '2 cm',
         colors: [
           { id: 's-bronze-rivers', name: 'Bronze Rivers', brand: 'Silestone (Quartz Group B)', thickness: '2 cm', slabSfCost: 25.98 },
@@ -1134,7 +1132,6 @@
         name: 'Tier 3 – PREMIUM',
         shortName: 'Tier 3',
         retailSf: 210,
-        shopLaborSf: 50,
         thicknessLabel: '2 cm',
         colors: [
           { id: 's-calacatta-gold-pol', name: 'Et. Calacatta Gold (Polished)', brand: 'Silestone (Quartz Groups C & D)', thickness: '2 cm', slabSfCost: 30.06 },
@@ -1154,7 +1151,6 @@
         name: 'Tier 4 – ULTRA PREMIUM',
         shortName: 'Tier 4',
         retailSf: 218,
-        shopLaborSf: 80, // All-inclusive 1.2cm Dekton with miter edge standard
         thicknessLabel: '1.2 cm (Miter Std)',
         colors: [
           { id: 'd-arga', name: 'Arga', brand: 'Dekton (1.2cm)', thickness: '1.2 cm', slabSfCost: 19.86 },
@@ -1229,6 +1225,19 @@
     const HAWAII_GET_RATE = 0.04712;
     const COSTCO_OMS_MARGIN_RATE = 0.10;
     const COSTCO_CARD_MAILING_FEE = 1.87; // $1.40 + $0.47
+    const ADDONS_BY_ID = new Map(ADDON_GROUPS.flatMap(group => group.items.map(item => [item.id, item])));
+
+    function countedAddon(item) {
+      return item.unit === 'Each' || item.unit === 'Sink';
+    }
+
+    function missingMiterLength(job) {
+      return job.edgeProfile === 'Miter' && job.selectedTierId !== 'tier4' && !(job.addonQuantities?.miterEdge > 0);
+    }
+
+    function shopLaborBaseFor(job) {
+      return job.shopLaborBase ?? (job.pricingVersion === PROGRAM_PRICING ? 45 : 50);
+    }
 
     // =========================================================================
     // 2. APPLICATION STATE & MULTI-JOB STORAGE
@@ -1251,10 +1260,16 @@
     };
 
     let savedJobs = [];
+    let sampleJobs;
+    let draftId;
     let latestCalc = null;
 
     function uid() {
       return 'p_' + Math.random().toString(36).substring(2, 9);
+    }
+
+    function newJobId() {
+      return 'job_' + (crypto.randomUUID?.() ?? (Date.now() + '_' + uid()));
     }
 
     function getEmptyAddonQuantities() {
@@ -1351,7 +1366,7 @@
         cache.finalTotalWithTax === 20141.35 && cache.netMarginPct === 44.8;
       const oldCaliwag = job?.id === 'job_caliwag_split' && cache?.billableSf === 85.17 &&
         cache.finalTotalWithTax === 29002.34 && cache.netMarginPct === 45.1;
-      if (!oldKitchen && !oldCaliwag && !retiredRate) return job;
+      if (cache && !oldKitchen && !oldCaliwag && !retiredRate) return job;
       try {
         validateEditableEstimate(job);
         const summary = summarizeEstimate(calculateEstimate(job));
@@ -1363,32 +1378,90 @@
       }
     }
 
-    function loadSavedJobsFromStorage() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            savedJobs = parsed.map(migrateSavedJob);
-            if (savedJobs.some((job, i) => job !== parsed[i])) persistSavedJobs();
-            else updateSavedCountsUI();
-            return;
-          }
-        }
-      } catch (e) {
-        // Fallback to sample jobs
+    function readLegacyJobs() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw === null) {
+        sampleJobs ??= buildSampleSavedJobs();
+        return sampleJobs;
       }
-      savedJobs = buildSampleSavedJobs();
-      persistSavedJobs();
+      const jobs = JSON.parse(raw);
+      if (!Array.isArray(jobs) || jobs.some(job => typeof job?.id !== 'string' || !job.id)) {
+        throw new Error('The saved jobs list is unreadable.');
+      }
+      return jobs;
     }
 
-    function persistSavedJobs() {
+    async function loadSavedJobsFromStorage() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedJobs));
-      } catch (e) {
-        showToast('Storage warning: Could not persist to browser storage');
+        savedJobs = await accessSavedJobs();
+      } catch {
+        showToast('Could not load or update saved jobs in this browser. Use an estimate JSON file to keep your draft.');
       }
       updateSavedCountsUI();
+    }
+
+    function mergeSavedJobs(existing, incoming) {
+      const byId = new Map(incoming.map(job => [job.id, job]));
+      const updated = existing.map(job => {
+        const replacement = byId.get(job.id);
+        byId.delete(job.id);
+        return replacement ?? job;
+      });
+      return [...byId.values(), ...updated];
+    }
+
+    // A readwrite transaction serializes the entire edit across tabs. On the
+    // first edit it also copies the old browser list, including an empty list.
+    function accessSavedJobs(change) {
+      return new Promise((resolve, reject) => {
+        const open = indexedDB.open(STORAGE_KEY, 1);
+        open.onupgradeneeded = () => open.result.createObjectStore('lists');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const transaction = db.transaction('lists', change ? 'readwrite' : 'readonly');
+          const store = transaction.objectStore('lists');
+          let jobs;
+          let error;
+          transaction.oncomplete = () => {
+            db.close();
+            resolve(jobs);
+          };
+          transaction.onabort = () => {
+            db.close();
+            reject(error || transaction.error);
+          };
+          const read = store.get('jobs');
+          read.onsuccess = () => {
+            try {
+              const existing = (read.result ?? readLegacyJobs()).map(migrateSavedJob);
+              jobs = change ? change(existing) : existing;
+              if (change) store.put(jobs, 'jobs');
+            } catch (cause) {
+              error = cause;
+              transaction.abort();
+            }
+          };
+        };
+      });
+    }
+
+    async function persistSavedJobs(change) {
+      try {
+        savedJobs = await accessSavedJobs(change);
+      } catch {
+        showToast('Could not update saved jobs in this browser. Use Save Current Estimate (.json) to keep your draft.');
+        return false;
+      }
+      if (savedJobs.some(job => job.id === draftId)) {
+        state.currentJobId = draftId;
+      } else if (state.currentJobId) {
+        state.currentJobId = null;
+        draftId = newJobId();
+      }
+      updateSavedCountsUI();
+      renderSavedJobsList();
+      return true;
     }
 
     function updateSavedCountsUI() {
@@ -1404,7 +1477,7 @@
       const pill = document.getElementById('activeJobStatusPill');
       if (pill) {
         if (isSaved) {
-          pill.textContent = 'Saved Job';
+          pill.textContent = 'Editing saved job';
           pill.className = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[10px] px-2 py-0.5 rounded-md';
         } else {
           pill.textContent = 'Unsaved Draft';
@@ -1425,9 +1498,10 @@
     }
 
     // Browsers expose both an empty optional field and an unfinished number as "".
-    function readOptionalNumber(input) {
+    function readNumberInput(input) {
       input.removeAttribute('aria-invalid');
-      return input.validity.badInput ? NaN : Number(input.value);
+      if (input.validity.badInput || input.validity.valueMissing) return NaN;
+      return Number(input.value);
     }
 
     // Keep an unfinished draft identifiable if adding a row or switching views rebuilds its input.
@@ -1438,7 +1512,7 @@
 
     function currentJobInputs() {
       const discountMode = document.getElementById('discountMode').value;
-      const discountValue = readOptionalNumber(document.getElementById('discountValue'));
+      const discountValue = readNumberInput(document.getElementById('discountValue'));
       return {
         projectName: document.getElementById('projectName').value.trim(),
         jobOrderNumber: document.getElementById('jobOrderNumber').value.trim(),
@@ -1465,8 +1539,8 @@
         splashPieces: state.splashPieces,
         addonQuantities: state.selectedTierId === 'tier4' && !(state.addonQuantities.miterEdge >= 0)
           ? { ...state.addonQuantities, miterEdge: 0 } : state.addonQuantities,
-        extraDirectTpiPreTax: readOptionalNumber(document.getElementById('extraDirectTpiPreTax')),
-        extraDirectTpiCogs: readOptionalNumber(document.getElementById('extraDirectTpiCogs'))
+        extraDirectTpiPreTax: readNumberInput(document.getElementById('extraDirectTpiPreTax')),
+        extraDirectTpiCogs: readNumberInput(document.getElementById('extraDirectTpiCogs'))
       };
     }
 
@@ -1476,15 +1550,16 @@
         colorName: calc.color.name,
         billableSf: calc.billableStoneSf,
         finalTotalWithTax: calc.finalQuoteWithTax,
-        netMarginPct: calc.trueNetMarginPct
+        netMarginPct: calc.trueNetMarginPct,
+        discountText: discountTextFor(calc)
       };
     }
 
-    function captureCurrentJobSnapshot(overrideId = null) {
+    function captureCurrentJobSnapshot() {
       const inputs = currentJobInputs();
       return {
         ...JSON.parse(JSON.stringify(inputs)),
-        id: overrideId || state.currentJobId || ('job_' + Date.now()),
+        id: draftId,
         savedAt: new Date().toISOString(),
         projectName: inputs.projectName || 'Untitled Estimate',
         summaryCache: summarizeEstimate(latestCalc)
@@ -1513,37 +1588,32 @@
       return false;
     }
 
-    function saveCurrentJob() {
+    async function saveCurrentJob() {
       recalculate();
       if (!canIssueQuote()) return;
-      const jobId = state.currentJobId || ('job_' + Date.now());
-      state.currentJobId = jobId;
-      const snapshot = captureCurrentJobSnapshot(jobId);
-
-      const existingIdx = savedJobs.findIndex(j => j.id === jobId);
-      if (existingIdx >= 0) {
-        savedJobs[existingIdx] = snapshot;
-      } else {
-        savedJobs.unshift(snapshot);
-      }
-
-      persistSavedJobs();
-      renderSavedJobsList();
+      const snapshot = captureCurrentJobSnapshot();
+      if (!await persistSavedJobs(jobs => mergeSavedJobs(jobs, [snapshot]))) return;
       showToast(`Saved "${snapshot.projectName}" (${formatCurrency(snapshot.summaryCache.finalTotalWithTax, 2)})`);
     }
 
     function startNewEstimate(notify = true) {
       applyEstimateSnapshot({
         id: null, pricingVersion: PROGRAM_PRICING, addonRateMode: 'live', selectedTierId: 'tier1',
-        quoteDate: todayLocal(), edgeProfile: 'E1-Eased', shopLaborBase: 45
+        quoteDate: todayLocal(), edgeProfile: 'E1-Eased'
       });
       if (notify) showToast('Started a blank estimate');
     }
 
-    function loadJobById(jobId) {
+    async function loadJobById(jobId) {
+      await loadSavedJobsFromStorage();
       const job = savedJobs.find(j => j.id === jobId);
       if (!job) return;
-
+      try {
+        validateEditableEstimate(job);
+      } catch (error) {
+        showToast(`Could not load this saved job. ${error.message}`);
+        return;
+      }
       applyEstimateSnapshot(job);
       closeSavedJobsModal();
       showToast(`Loaded "${job.projectName}"`);
@@ -1554,11 +1624,12 @@
       state.pricingVersion = job.pricingVersion || 'original';
       state.customLines = customLinesFor(job).map(line => ({ ...line }));
       state.currentJobId = job.id;
+      draftId = job.id || newJobId();
       state.addonRateMode = job.addonRateMode || 'target';
       state.selectedTierId = TIER_CATALOG[job.selectedTierId] ? job.selectedTierId : 'tier2';
       state.selectedColorIndex = job.selectedColorIndex || 0;
       state.colorSearchQuery = '';
-      state.shopCardRate = job.shopCardRate || 0.10;
+      state.shopCardRate = job.shopCardRate ?? 0.10;
       state.shopCardOnFullBase = job.shopCardOnFullBase !== undefined ? job.shopCardOnFullBase : true;
       state.manualTotalWithTax = job.manualTotalWithTax ?? null;
       document.getElementById('manualTotalOverrideInput').value = state.manualTotalWithTax ?? '';
@@ -1587,7 +1658,7 @@
       document.getElementById('discountMode').value = job.discountMode || 'none';
       document.getElementById('discountValue').value = job.discountValue ?? 0;
       document.getElementById('discountReason').value = job.discountReason || '';
-      document.getElementById('shopLaborBase').value = job.shopLaborBase ?? 50;
+      document.getElementById('shopLaborBase').value = shopLaborBaseFor(job);
       document.getElementById('usableYieldPct').value = job.usableYieldPct ?? 80;
       document.getElementById('extraDirectTpiPreTax').value = job.extraDirectTpiPreTax || 0;
       document.getElementById('extraDirectTpiCogs').value = job.extraDirectTpiCogs || 0;
@@ -1604,30 +1675,27 @@
       updateSavedCountsUI();
     }
 
-    function duplicateSavedJob(jobId) {
+    async function duplicateSavedJob(jobId) {
       const job = savedJobs.find(j => j.id === jobId);
       if (!job) return;
       const copy = JSON.parse(JSON.stringify(job));
-      copy.id = 'job_' + Date.now();
+      copy.id = newJobId();
       copy.savedAt = new Date().toISOString();
       copy.projectName = `${job.projectName} (Copy)`;
-      savedJobs.unshift(copy);
-      persistSavedJobs();
-      renderSavedJobsList();
+      if (!await persistSavedJobs(jobs => [copy, ...jobs])) return;
       showToast(`Duplicated "${job.projectName}"`);
     }
 
-    function deleteSavedJob(jobId) {
+    async function deleteSavedJob(jobId) {
       const job = savedJobs.find(j => j.id === jobId);
-      savedJobs = savedJobs.filter(j => j.id !== jobId);
-      persistSavedJobs();
-      renderSavedJobsList();
+      if (!await persistSavedJobs(jobs => jobs.filter(j => j.id !== jobId))) return;
       showToast(`Deleted "${job ? job.projectName : 'job'}"`);
     }
 
-    function openSavedJobsModal() {
-      renderSavedJobsList();
+    async function openSavedJobsModal() {
       document.getElementById('savedJobsModal').classList.remove('hidden');
+      await loadSavedJobsFromStorage();
+      renderSavedJobsList();
     }
 
     function closeSavedJobsModal() {
@@ -1640,6 +1708,23 @@
         piece.name || 'Unnamed piece',
         `${piece.qty ?? 1} × ${parseFloat(piece.length) || 0} × ${parseFloat(piece[depthField]) || 0} in`
       ]);
+    }
+
+    function discountTextFor(calc) {
+      return calc.discountAmount ? calc.discountLabel + ': −' + formatCurrency(calc.discountAmount) : '';
+    }
+
+    function savedDiscountText(job) {
+      if (!job.discountMode || job.discountMode === 'none') return '';
+      if (typeof job.summaryCache?.discountText === 'string') return job.summaryCache.discountText;
+      try {
+        validateEditableEstimate(job);
+        const calc = calculateEstimate(job);
+        if (calc) return discountTextFor(calc);
+      } catch {
+        // Historical records can still be viewed while their inputs need repair.
+      }
+      return 'Open the estimate to review the discount.';
     }
 
     function openSavedEstimateViewer(job) {
@@ -1661,7 +1746,7 @@
         ['Material', material],
         ['Billable area', cache.billableSf != null && Number.isFinite(billableArea) ? `${billableArea.toFixed(2)} SF` : ''],
         ['Saved total (with tax)', cache.finalTotalWithTax != null && Number.isFinite(savedTotal) ? formatCurrency(savedTotal) : ''],
-        ['Discount', job.discountMode && job.discountMode !== 'none' ? `${job.discountReason || 'Promotional discount'} · ${job.discountMode === 'percent' ? job.discountValue + '%' : formatCurrency(job.discountValue)}` : '']
+        ['Discount', savedDiscountText(job)]
       ].filter(([, value]) => value != null && value !== '');
 
       const addons = ADDON_GROUPS.flatMap(group => group.items)
@@ -1672,7 +1757,7 @@
         ['Countertop pieces', savedPieceDetails(job.counterPieces, 'width')],
         ['Backsplash pieces', savedPieceDetails(job.splashPieces, 'height')],
         ['Add-ons', addons],
-        ['Custom scope', customLinesFor(job).map(line => [line.description || 'Custom scope', `${line.qty} × ${formatCurrency(line.retail)}`])]
+        ['Custom scope', customLinesFor(job).filter(Boolean).map(line => [line.description || 'Custom scope', `${line.qty} × ${formatCurrency(line.retail)}`])]
       ].filter(([, rows]) => rows.length);
 
       document.getElementById('savedEstimateViewerTitle').textContent = job.projectName || 'Untitled Estimate';
@@ -1727,7 +1812,7 @@
         const dateStr = job.savedAt
           ? new Date(job.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
           : '';
-        const marginPct = Number(cache.netMarginPct || 0);
+        const marginPct = cache.netMarginPct;
         const marginClass = marginPct >= 40 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200';
 
         return `
@@ -1740,7 +1825,7 @@
                   ${job.jobOrderNumber ? `<span class="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">${escapeHtml(job.jobOrderNumber)}</span>` : ''}
                 </div>
                 <div class="text-xs text-slate-600 mt-1">
-                  <strong>${escapeHtml(cache.tierShort || '')}</strong> • ${escapeHtml(cache.colorName || '')} (${Number(cache.billableSf || 0).toFixed(1)} SF)
+                  <strong>${escapeHtml(cache.tierShort || '')}</strong> ${escapeHtml(cache.colorName || '')} ${Number.isFinite(cache.billableSf) ? '(' + cache.billableSf.toFixed(1) + ' SF)' : ''}
                 </div>
                 <div class="text-[11px] text-slate-400 mt-0.5">
                   Saved ${dateStr}${job.repName ? ` • Rep: ${escapeHtml(job.repName)}` : ''}
@@ -1748,9 +1833,9 @@
               </div>
 
               <div class="text-right shrink-0">
-                <div class="text-base font-black text-slate-900">${formatCurrency(Number(cache.finalTotalWithTax || 0), 2)}</div>
+                <div class="text-base font-black text-slate-900">${Number.isFinite(cache.finalTotalWithTax) ? formatCurrency(cache.finalTotalWithTax) : 'Total unavailable'}</div>
                 <span class="inline-block mt-1 text-[11px] font-extrabold px-2 py-0.5 rounded-md border ${marginClass}">
-                  ${formatMargin(marginPct)} job margin
+                  ${Number.isFinite(marginPct) ? formatMargin(marginPct) + ' job margin' : 'Margin unavailable'}
                 </span>
               </div>
             </div>
@@ -1804,16 +1889,23 @@
       }
     }
 
-    function exportSavedJobsJson() {
+    async function exportSavedJobsJson() {
+      let jobs;
+      try {
+        jobs = await accessSavedJobs();
+      } catch {
+        showToast('Could not read the saved list for backup. Use Save Current Estimate (.json) for your open draft.');
+        return;
+      }
       const payload = {
         program: 'Costco Hawaii Master Estimator & 80/20 Splitter (TPI)',
         exportedAt: new Date().toISOString(),
-        jobs: savedJobs
+        jobs
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const stamp = payload.exportedAt.slice(0, 10);
       downloadFile(blob, `TPI-Costco-Hawaii-Jobs-${stamp}.json`);
-      showToast(`Exported ${savedJobs.length} saved jobs to JSON backup`);
+      showToast(`Exported ${jobs.length} saved jobs to JSON backup`);
     }
 
     function validateEditableEstimate(job) {
@@ -1827,26 +1919,30 @@
         ['target', 'live'].includes(job.addonRateMode);
 
       if (!validFields) throw new Error('The editable estimate is missing valid job details.');
+      if (!validShopCardRate(job.shopCardRate)) throw new Error('Choose an estimate with a 10% or 15% Shop Card rate.');
       const tier = Object.hasOwn(TIER_CATALOG, job.selectedTierId) && TIER_CATALOG[job.selectedTierId];
       if (!tier || !Number.isInteger(job.selectedColorIndex) || !tier.colors[job.selectedColorIndex]) {
         throw new Error('The saved material is unavailable in this calculator version.');
       }
 
-      const validPieces = (pieces, depthField) => Array.isArray(pieces) && pieces.every(piece =>
-        piece && typeof piece.name === 'string' && Number.isFinite(piece.length) && Number.isFinite(piece[depthField]) && Number.isFinite(pieceArea(piece, depthField))
-      );
+      const validPieces = (pieces, depthField) => Array.isArray(pieces) && pieces.every(piece => {
+        if (!piece || typeof piece.name !== 'string' || !Number.isFinite(piece.length) || !Number.isFinite(piece[depthField])) return false;
+        // Early releases could save negative dimensions. Reopen those rows for correction.
+        return (piece.qty == null && (!job.pricingVersion || job.pricingVersion === 'original')) ||
+          Number.isFinite(pieceArea(piece, depthField));
+      });
       if (!validPieces(job.counterPieces, 'width') || !validPieces(job.splashPieces, 'height')) {
         throw new Error('The editable estimate contains invalid measurements.');
+      }
+      if (!job.addonQuantities || typeof job.addonQuantities !== 'object' || Array.isArray(job.addonQuantities) ||
+          !validAddonQuantities(job.addonQuantities, true)) {
+        throw new Error('The estimate contains an unknown add-on or an invalid add-on quantity.');
       }
       const optionalText = ['afJobNumber', 'edgeProfile', 'quoteDate', 'discountReason', 'customScopeDesc'];
       if (optionalText.some(key => job[key] != null && typeof job[key] !== 'string') ||
           (job.pricingVersion != null && !['original', PROGRAM_PRICING].includes(job.pricingVersion)) ||
           (job.customLines != null && !Array.isArray(job.customLines)) || !validJobOptions(job)) {
         throw new Error('The estimate contains invalid pricing, quantities, or costs.');
-      }
-      const addons = job.addonQuantities;
-      if (!addons || typeof addons !== 'object' || Array.isArray(addons) || !Object.values(addons).every(n => Number.isFinite(n) && n >= 0)) {
-        throw new Error('The editable estimate contains invalid add-on quantities.');
       }
     }
 
@@ -2001,38 +2097,34 @@
       }
     }
 
-    function importSavedJobsJson(event) {
-      const file = event.target.files && event.target.files[0];
+    async function importSavedJobsJson(event) {
+      const input = event.currentTarget;
+      const file = input.files[0];
+      input.value = '';
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          const incoming = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.jobs) ? parsed.jobs : null);
-          if (!incoming || incoming.length === 0) {
-            showToast('Invalid JSON backup file (no jobs found)');
-            return;
-          }
-          let mergedCount = 0;
-          incoming.map(migrateSavedJob).forEach(job => {
-            if (!job || !job.id) return;
-            const idx = savedJobs.findIndex(existing => existing.id === job.id);
-            if (idx >= 0) {
-              savedJobs[idx] = job;
-            } else {
-              savedJobs.unshift(job);
-            }
-            mergedCount++;
-          });
-          persistSavedJobs();
-          renderSavedJobsList();
-          showToast(`Imported ${mergedCount} saved job(s) from backup`);
-        } catch (err) {
-          showToast('Error reading JSON backup file');
+      try {
+        const parsed = JSON.parse(await file.text());
+        const incoming = Array.isArray(parsed) ? parsed : parsed?.jobs;
+        if (!Array.isArray(incoming)) throw new Error('Choose a saved jobs backup.');
+        if (incoming.length === 0) {
+          showToast('This backup contains no saved jobs.');
+          return;
         }
-        event.target.value = '';
-      };
-      reader.readAsText(file);
+        for (const [index, job] of incoming.entries()) {
+          try {
+            if (typeof job?.id !== 'string' || !job.id) throw new Error('Missing job ID.');
+            validateEditableEstimate(job);
+          } catch (error) {
+            throw new Error(`Backup job ${index + 1}: ${error.message}`);
+          }
+        }
+        const jobs = incoming.map(migrateSavedJob);
+        if (await persistSavedJobs(existing => mergeSavedJobs(existing, jobs))) {
+          showToast(`Imported ${jobs.length} saved job(s) from backup`);
+        }
+      } catch (error) {
+        showToast(error instanceof SyntaxError ? 'Could not read the backup JSON.' : error.message);
+      }
     }
 
     // =========================================================================
@@ -2131,20 +2223,20 @@
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Length (in)</label>
-              <input type="number" aria-label="Counter ${index + 1} length in inches" step="any" min="0" ${numberValueAttribute(p.length)}
-                oninput="updateCounterPiece('${p.id}', 'length', readOptionalNumber(this))"
+              <input type="number" required aria-label="Counter ${index + 1} length in inches" step="any" min="0" ${numberValueAttribute(p.length)}
+                oninput="updateCounterPiece('${p.id}', 'length', readNumberInput(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Width (in)</label>
-              <input type="number" aria-label="Counter ${index + 1} width in inches" step="any" min="0" ${numberValueAttribute(p.width)}
-                oninput="updateCounterPiece('${p.id}', 'width', readOptionalNumber(this))"
+              <input type="number" required aria-label="Counter ${index + 1} width in inches" step="any" min="0" ${numberValueAttribute(p.width)}
+                oninput="updateCounterPiece('${p.id}', 'width', readNumberInput(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-2 sm:col-span-1">
               <label class="block text-[10px] font-bold text-slate-500 sm:hidden">Qty</label>
-              <input type="number" aria-label="Counter ${index + 1} quantity" step="1" min="0" max="9007199254740991" ${numberValueAttribute(p.qty ?? 1)}
-                oninput="updateCounterPiece('${p.id}', 'qty', readOptionalNumber(this))"
+              <input type="number" required aria-label="Counter ${index + 1} quantity" step="1" min="0" max="9007199254740991" ${numberValueAttribute(p.qty ?? 1)}
+                oninput="updateCounterPiece('${p.id}', 'qty', readNumberInput(this))"
                 class="w-full px-1 py-2 rounded-lg border border-slate-300 text-center text-sm font-bold" />
             </div>
             <div class="col-span-3 sm:col-span-2 text-right">
@@ -2185,20 +2277,20 @@
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Length (in)</label>
-              <input type="number" aria-label="Backsplash ${index + 1} length in inches" step="any" min="0" ${numberValueAttribute(p.length)}
-                oninput="updateSplashPiece('${p.id}', 'length', readOptionalNumber(this))"
+              <input type="number" required aria-label="Backsplash ${index + 1} length in inches" step="any" min="0" ${numberValueAttribute(p.length)}
+                oninput="updateSplashPiece('${p.id}', 'length', readNumberInput(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-3 sm:col-span-2">
               <label class="block sm:hidden text-[10px] font-bold text-slate-400 uppercase mb-0.5">Height (in)</label>
-              <input type="number" aria-label="Backsplash ${index + 1} height in inches" step="any" min="0" ${numberValueAttribute(p.height)}
-                oninput="updateSplashPiece('${p.id}', 'height', readOptionalNumber(this))"
+              <input type="number" required aria-label="Backsplash ${index + 1} height in inches" step="any" min="0" ${numberValueAttribute(p.height)}
+                oninput="updateSplashPiece('${p.id}', 'height', readNumberInput(this))"
                 class="w-full px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
             </div>
             <div class="col-span-2 sm:col-span-1">
               <label class="block text-[10px] font-bold text-slate-500 ">Qty</label>
-              <input type="number" aria-label="Backsplash ${index + 1} quantity" step="1" min="0" max="9007199254740991" ${numberValueAttribute(p.qty ?? 1)}
-                oninput="updateSplashPiece('${p.id}', 'qty', readOptionalNumber(this))"
+              <input type="number" required aria-label="Backsplash ${index + 1} quantity" step="1" min="0" max="9007199254740991" ${numberValueAttribute(p.qty ?? 1)}
+                oninput="updateSplashPiece('${p.id}', 'qty', readNumberInput(this))"
                 class="w-full px-1 py-2 rounded-lg border border-slate-300 text-center text-sm font-bold" />
             </div>
             <div class="col-span-3 sm:col-span-2 text-right">
@@ -2256,7 +2348,7 @@
     }
 
     function updateCustomLine(index, key, input) {
-      state.customLines[index][key] = key === 'description' ? input.value : readOptionalNumber(input);
+      state.customLines[index][key] = key === 'description' ? input.value : readNumberInput(input);
       recalculate();
     }
 
@@ -2282,6 +2374,7 @@
           const qty = state.addonQuantities[item.id] ?? 0;
           if (item.retired && !(qty > 0)) return '';
           const disabled = item.nonDektonOnly && isDekton;
+          const countAttributes = countedAddon(item) ? 'step="1" max="9007199254740991"' : 'step="any"';
           const activeRetail = getAddonRetail(item);
 
           const subTag = showInternalCogs
@@ -2321,7 +2414,7 @@
                   class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-bold text-base text-slate-700 flex items-center justify-center transition disabled:pointer-events-none">
                   −
                 </button>
-                <input id="addonQty_${item.id}" aria-label="${escapeHtml(addonName(item, state.pricingVersion))} quantity" type="number" step="any" min="0" ${disabled || item.retired ? 'disabled' : ''} ${numberValueAttribute(disabled ? 0 : qty)}
+                <input id="addonQty_${item.id}" aria-label="${escapeHtml(addonName(item, state.pricingVersion))} quantity" type="number" ${countAttributes} min="0" ${item.retired && !Number.isSafeInteger(qty) ? 'aria-invalid="true"' : ''} ${disabled ? 'disabled' : item.retired ? 'readonly' : ''} ${numberValueAttribute(disabled ? 0 : qty)}
                   oninput="updateAddonQty('${item.id}', this)"
                   class="w-12 h-9 text-center rounded-xl border border-slate-300 text-sm font-extrabold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-costcoNavy" />
                 <button type="button" ${disabled || item.retired ? 'disabled' : ''} onclick="stepAddon('${item.id}', 1)"
@@ -2558,7 +2651,9 @@
 
     function stepAddon(id, delta) {
       const curr = state.addonQuantities[id] || 0;
-      setAddonQty(id, Math.max(0, curr + delta));
+      let next = curr + delta;
+      if (countedAddon(ADDONS_BY_ID.get(id))) next = delta > 0 ? Math.floor(curr) + 1 : Math.ceil(curr) - 1;
+      setAddonQty(id, Math.max(0, next));
     }
 
     function setAddonQty(id, qty) {
@@ -2568,17 +2663,17 @@
     }
 
     function updateAddonQty(id, input) {
-      const qty = readOptionalNumber(input);
+      const qty = readNumberInput(input);
       state.addonQuantities[id] = qty;
       input.closest('[data-addon-row]').classList.toggle('addon-selected', qty > 0);
-      if (input.disabled && qty === 0) renderAddons(); // Remove a retired item once its quantity reaches zero.
+      if (input.readOnly) renderAddons(); // Refresh the correction state or remove the retired item at zero.
       recalculate();
     }
 
     function autoFillDemoSf(id) {
       if (!canIssueQuote()) return;
       const counterSf = latestCalc.counterSf;
-      const demoSf = state.pricingVersion === PROGRAM_PRICING ? Math.ceil(counterSf) : Math.round(counterSf);
+      const demoSf = roundAreaUnits(counterSf, state.pricingVersion === PROGRAM_PRICING ? Math.ceil : Math.round);
       setAddonQty(id, demoSf);
       showToast(`Synced ${demoSf} SF from countertops`);
     }
@@ -2651,10 +2746,42 @@
       return length * depth * qty / 144;
     }
 
+    function totalPieceArea(pieces, depthField) {
+      // Carry the lost low-order bits forward when adding many small pieces.
+      let total = 0;
+      let correction = 0;
+      for (const piece of pieces) {
+        const area = pieceArea(piece, depthField) - correction;
+        const next = total + area;
+        correction = (next - total) - area;
+        total = next;
+      }
+      return total;
+    }
+
+    function roundAreaUnits(value, round) {
+      // Decimal dimensions can put an exact billing boundary a few floating-point steps off.
+      const boundary = round === Math.ceil ? Math.round(value) : Math.floor(value) + 0.5;
+      const tolerance = 4 * Number.EPSILON * value;
+      return round(Math.abs(value - boundary) <= tolerance ? boundary : value);
+    }
+
+    function validShopCardRate(rate) {
+      return rate === 0.10 || rate === 0.15;
+    }
+
+    function validAddonQuantities(quantities, allowHistoricalCounts = false) {
+      return Object.entries(quantities).every(([id, qty]) => {
+        if (qty === 0) return true;
+        const item = ADDONS_BY_ID.get(id);
+        return item && Number.isFinite(qty) && qty > 0 &&
+          (allowHistoricalCounts || !countedAddon(item) || Number.isSafeInteger(qty));
+      });
+    }
+
     function validJobOptions(job) {
       const between = (n, low, high) => Number.isFinite(n) && n >= low && n <= high;
-      return Object.values(job.addonQuantities ?? {}).every(n => between(n, 0, Infinity)) &&
-        [45, 50].includes(job.shopLaborBase ?? 50) &&
+      return [45, 50].includes(shopLaborBaseFor(job)) &&
         between(job.usableYieldPct ?? 80, 40, 100) &&
         ['none', 'percent', 'fixed'].includes(job.discountMode ?? 'none') &&
         (job.discountMode === 'none' || between(job.discountValue ?? 0, 0, Infinity)) &&
@@ -2666,13 +2793,14 @@
       // Older editable files could contain negative direct amounts. Let the office open
       // those drafts for correction while preventing issue of a quote with those amounts.
       const officeAmounts = [job.extraDirectTpiPreTax ?? 0, job.extraDirectTpiCogs ?? 0, job.manualTotalWithTax ?? 0];
-      if (!validJobOptions(job) || !officeAmounts.every(n => Number.isFinite(n) && n >= 0)) return null;
+      if (missingMiterLength(job) || !validShopCardRate(job.shopCardRate) || !validAddonQuantities(job.addonQuantities ?? {}) ||
+          !validJobOptions(job) || !officeAmounts.every(n => Number.isFinite(n) && n >= 0)) return null;
       const program = job.pricingVersion === PROGRAM_PRICING;
       const tier = TIER_CATALOG[job.selectedTierId];
       const color = tier.colors[job.selectedColorIndex] || tier.colors[0];
       const isDekton = tier.id === 'tier4';
-      const counterSf = job.counterPieces.reduce((sum, piece) => sum + pieceArea(piece, 'width'), 0);
-      const splashSf = job.splashPieces.reduce((sum, piece) => sum + pieceArea(piece, 'height'), 0);
+      const counterSf = totalPieceArea(job.counterPieces, 'width');
+      const splashSf = totalPieceArea(job.splashPieces, 'height');
       const billableStoneSf = counterSf + splashSf;
       if (!Number.isFinite(billableStoneSf)) return null;
 
@@ -2761,11 +2889,10 @@
       const netStonePlusWfSf = billableStoneSf + extraNetSlabSf;
       const grossYieldSf = netStonePlusWfSf / ((job.usableYieldPct ?? 80) / 100);
       const exactSlabs = grossYieldSf / JUMBO_SLAB_SF;
-      const slabsNeeded = Math.ceil(exactSlabs);
+      const slabsNeeded = roundAreaUnits(exactSlabs, Math.ceil);
       const remnantSf = Math.max(0, slabsNeeded * JUMBO_SLAB_SF - grossYieldSf);
       const materialCogs = roundMoney(grossYieldSf * color.slabSfCost);
-      const defaultLaborRate = program ? (isDekton ? 75 : 45) : tier.shopLaborSf;
-      const laborRate = job.shopLaborBase == null ? defaultLaborRate : job.shopLaborBase + (isDekton ? 30 : 0);
+      const laborRate = shopLaborBaseFor(job) + (isDekton ? 30 : 0);
       const shopLaborCogs = roundMoney(billableStoneSf * laborRate);
       const subcontractorCosts = allCogsLines.reduce((sum, line) => sum + line.cogs, 0);
       const totalJobCogs = roundMoney(materialCogs + shopLaborCogs + protectionCogs + subcontractorCosts);
@@ -2799,6 +2926,8 @@
       document.getElementById('discountValue').disabled = !discountOn;
       document.getElementById('discountReasonField').hidden = !discountOn;
       document.getElementById('discountValueLabel').textContent = job.discountMode === 'percent' ? 'Discount (%) · up to 100%' : 'Amount ($)';
+      document.getElementById('addonQty_miterEdge')?.setCustomValidity(missingMiterLength(job)
+        ? 'Enter the upgraded miter length in linear feet before issuing this quote.' : '');
       latestCalc = calculateEstimate(job);
       document.body.classList.toggle('invalid-measurements', !latestCalc);
       const invalidYield = !document.getElementById('usableYieldPct').validity.valid;
@@ -2810,7 +2939,7 @@
       document.getElementById('btnSyncFromEstimator').classList.toggle('hidden', job.manualTotalWithTax == null);
       if (!latestCalc) {
         document.getElementById('invalidEstimateMessage').textContent = issue
-          ? `Correct ${issue.getAttribute('aria-label')} before saving, printing, or sharing.`
+          ? (issue.validity.customError ? issue.validationMessage : `Correct ${issue.getAttribute('aria-label')} before saving, printing, or sharing.`)
           : 'Check the estimate amounts and measurements before saving, printing, or sharing.';
         document.getElementById('fixEstimateInput').hidden = !issue;
         document.getElementById('previewNotice').hidden = !document.body.classList.contains('has-estimate-preview');
@@ -2833,7 +2962,7 @@
       document.getElementById('officeJobMeta').textContent = [projectName, jobMeta].filter(Boolean).join(' · ');
       document.getElementById('quoteContacts').textContent = [job.customerContact, job.repName && 'Estimator: ' + job.repName].filter(Boolean).join(' · ');
       document.getElementById('summaryEdge').textContent = job.edgeProfile ? 'Edge: ' + job.edgeProfile : '';
-      const discountText = latestCalc.discountAmount ? latestCalc.discountLabel + ': −' + formatCurrency(latestCalc.discountAmount) : '';
+      const discountText = discountTextFor(latestCalc);
       const customerDiscount = document.getElementById('customerDiscount');
       customerDiscount.hidden = !discountText;
       customerDiscount.textContent = discountText;
@@ -3088,10 +3217,10 @@
       document.body.appendChild(textarea);
       textarea.select();
       try {
-        document.execCommand('copy');
+        if (!document.execCommand('copy')) throw new Error('Clipboard unavailable');
         showToast(successMsg);
       } catch (err) {
-        showToast('Could not copy automatically — please select text manually.');
+        showToast('Clipboard unavailable. Use the Print / PDF button to share this estimate.');
       }
       document.body.removeChild(textarea);
     }

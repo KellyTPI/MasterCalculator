@@ -229,3 +229,64 @@ test('amounts and measurements that overflow a payable total block the quote', (
   assert.equal(app.calculateEstimate(counterJob(1e200, 1e200)), null);
   assert.equal(app.calculateEstimate(programJob({ addonQuantities: { miterEdge: 1e300 } })), null);
 });
+
+test('slab counts respect exact capacity and still round a genuine excess up', () => {
+  const piece = { length: 327 / 2.54, width: (159 / 2.54) * 0.60, qty: 5 };
+  const withPiece = p => app.calculateEstimate(programJob({ counterPieces: [p], usableYieldPct: 60 }));
+  assert.equal(withPiece(piece).slabsNeeded, 5);
+  assert.equal(withPiece({ ...piece, width: piece.width + 0.000001 }).slabsNeeded, 6);
+  assert.equal(withPiece({ ...piece, width: 0.000001 }).slabsNeeded, 1);
+});
+
+test('transfer files reject unsupported rebates and unrecognized billable add-ons', () => {
+  for (const edit of [{ shopCardRate: 10 }, { shopCardRate: -0.1 }, { addonQuantities: { futureService: 1 } }]) {
+    const job = programJob(edit);
+    assert.throws(() => app.readEstimateFile({ version: 'tpi-estimate-1', job }));
+    assert.equal(app.calculateEstimate(job), null);
+  }
+  const old = counterJob(-12, 12);
+  assert.equal(app.readEstimateFile({ version: 'tpi-estimate-1', job: old }), old);
+  assert.equal(app.calculateEstimate(old), null);
+  assert.deepEqual(app.migrateSavedJob({ ...sample, summaryCache: undefined }).summaryCache, sample.summaryCache);
+});
+
+test('miter upgrades require a measured length and Dekton includes its edge', () => {
+  for (const version of ['original', '2026-11']) {
+    for (const tier of ['tier1', 'tier2', 'tier3', 'tier4']) {
+      const job = programJob({ pricingVersion: version, selectedTierId: tier, edgeProfile: 'Miter' });
+      const priced = app.calculateEstimate({ ...job, addonQuantities: { miterEdge: 2.5 } });
+      if (tier === 'tier4') {
+        assert.equal(priced.grossSubtotal, app.calculateEstimate(job).grossSubtotal);
+        assert.equal(priced.activeAddonLines.length, 0);
+      } else {
+        assert.equal(app.calculateEstimate(job), null);
+        assert.equal(priced.activeAddonLines[0].retail, 75);
+        assert.ok(app.calculateEstimate({ ...job, edgeProfile: 'E1-Eased' }));
+      }
+    }
+  }
+});
+
+test('historical fractional counts open for correction while SF and LF retain precision', () => {
+  for (const id of ['undermountSink', 'cooktopCutout', 'plumbDisc', 'waterfall', 'showerPan']) {
+    const old = programJob({ addonQuantities: { [id]: 1.5 } });
+    assert.equal(app.readEstimateFile({ version: 'tpi-estimate-1', job: old }), old);
+    assert.equal(app.calculateEstimate(old), null);
+    assert.ok(app.calculateEstimate({ ...old, addonQuantities: { [id]: 1 } }));
+  }
+  const measured = app.calculateEstimate(programJob({ addonQuantities: { demoStone: 0.25, miterEdge: 1.5 } }));
+  assert.deepEqual(Array.from(measured.activeAddonLines, l => l.retail), [45, 5.25]);
+});
+
+test('the saved viewer uses the applied discount for new and historical summaries', () => {
+  for (const [mode, value, text] of [
+    ['percent', 110, 'Promotion (100%): −$1,040.00'],
+    ['fixed', 1500, 'Promotion: −$1,040.00'],
+    ['percent', 10, 'Promotion (10%): −$104.00']
+  ]) {
+    const job = programJob({ discountMode: mode, discountValue: value, discountReason: 'Promotion', summaryCache: {} });
+    const calc = app.calculateEstimate(job);
+    assert.equal(app.savedDiscountText(job), text);
+    assert.equal(app.summarizeEstimate(calc).discountText, text);
+  }
+});

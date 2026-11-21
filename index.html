@@ -77,7 +77,7 @@
         background: #ffffff !important;
         padding-bottom: 0 !important;
       }
-      header, #leftWorkspaceColumn, #savedJobsModal, #savedEstimateViewer, #toastBanner, #mobileStickyBar, .no-print {
+      header, #leftWorkspaceColumn, #savedJobsModal, #savedEstimateViewer, #saveConflict, #saveConflict::backdrop, #toastBanner, #mobileStickyBar, .no-print {
         display: none !important;
       }
       main {
@@ -204,6 +204,16 @@
       </form>
     </div>
     <div id="savedEstimateViewerDetails" class="space-y-5 p-5 text-sm text-slate-900"></div>
+  </dialog>
+
+  <dialog id="saveConflict" aria-labelledby="saveConflictTitle" aria-describedby="saveConflictMessage" class="m-auto w-11/12 max-w-md rounded-xl p-5 shadow-xl backdrop:bg-slate-950/60">
+    <h2 id="saveConflictTitle" class="text-lg font-bold">Your draft is still open</h2>
+    <p id="saveConflictMessage" class="my-3 text-sm"></p>
+    <form method="dialog" class="flex flex-wrap gap-2 text-sm">
+      <button autofocus class="rounded-lg border px-3 py-2">Keep editing</button>
+      <button type="button" id="reloadConflictingJob" onclick="loadJobById(draft.id)" class="rounded-lg border px-3 py-2">Reload saved version</button>
+      <button type="button" onclick="saveConflictCopy()" class="rounded-lg bg-costcoNavy px-3 py-2 font-semibold text-white">Save draft as a copy</button>
+    </form>
   </dialog>
 
   <!-- Top Sticky Header -->
@@ -1261,7 +1271,7 @@
 
     let savedJobs = [];
     let sampleJobs;
-    let draftId;
+    let draft;
     let latestCalc = null;
 
     function uid() {
@@ -1270,6 +1280,26 @@
 
     function newJobId() {
       return 'job_' + (crypto.randomUUID?.() ?? (Date.now() + '_' + uid()));
+    }
+
+    function savedRevision(job) {
+      // Existing records have no revision until their first save or backup restore.
+      return job?.id ? (job.revision ?? 'legacy') : null;
+    }
+
+    function beginDraft(job) {
+      state.currentJobId = job?.id || null;
+      draft = { id: state.currentJobId || newJobId(), revision: savedRevision(job), pending: Promise.resolve() };
+      document.getElementById('saveConflict').close();
+    }
+
+    class SavedJobConflict extends Error {
+      constructor(editor, existing) {
+        super(existing ? 'The saved job changed after you opened it. Reloading replaces your draft with the saved version.'
+          : 'This job was deleted after you opened it. You can keep your edits in a separate copy.');
+        this.editor = editor;
+        this.canReload = Boolean(existing);
+      }
     }
 
     function getEmptyAddonQuantities() {
@@ -1366,13 +1396,15 @@
         cache.finalTotalWithTax === 20141.35 && cache.netMarginPct === 44.8;
       const oldCaliwag = job?.id === 'job_caliwag_split' && cache?.billableSf === 85.17 &&
         cache.finalTotalWithTax === 29002.34 && cache.netMarginPct === 45.1;
-      if (cache && !oldKitchen && !oldCaliwag && !retiredRate) return job;
+      const refreshSummary = oldKitchen || oldCaliwag || !cache;
+      if (!refreshSummary && !retiredRate && cache.netMarginPct !== 0) return job;
       try {
         validateEditableEstimate(job);
         const summary = summarizeEstimate(calculateEstimate(job));
-        // Preserve the recorded customer figures when updating an old job margin.
-        return { ...job, summaryCache: oldKitchen || oldCaliwag || !cache
-          ? summary : { ...cache, netMarginPct: summary.netMarginPct } };
+        if (refreshSummary) return { ...job, summaryCache: summary };
+        // Only repair a historical 0% if it represented the absence of revenue.
+        if (!retiredRate && summary.netMarginPct !== null) return job;
+        return { ...job, summaryCache: { ...cache, netMarginPct: summary.netMarginPct, shopGrossProfit: summary.shopGrossProfit } };
       } catch {
         return job;
       }
@@ -1396,8 +1428,10 @@
         savedJobs = await accessSavedJobs();
       } catch {
         showToast('Could not load or update saved jobs in this browser. Use an estimate JSON file to keep your draft.');
+        return false;
       }
       updateSavedCountsUI();
+      return true;
     }
 
     function mergeSavedJobs(existing, incoming) {
@@ -1446,19 +1480,23 @@
       });
     }
 
-    async function persistSavedJobs(change) {
+    async function persistSavedJobs(change, afterCommit) {
       try {
         savedJobs = await accessSavedJobs(change);
-      } catch {
-        showToast('Could not update saved jobs in this browser. Use Save Current Estimate (.json) to keep your draft.');
+      } catch (error) {
+        if (error instanceof SavedJobConflict) {
+          if (error.editor === draft) {
+            document.getElementById('saveConflictMessage').textContent = error.message;
+            document.getElementById('reloadConflictingJob').hidden = !error.canReload;
+            const dialog = document.getElementById('saveConflict');
+            if (!dialog.open) dialog.showModal();
+          }
+        } else {
+          showToast('Could not update saved jobs in this browser. Use Save Current Estimate (.json) to keep your draft.');
+        }
         return false;
       }
-      if (savedJobs.some(job => job.id === draftId)) {
-        state.currentJobId = draftId;
-      } else if (state.currentJobId) {
-        state.currentJobId = null;
-        draftId = newJobId();
-      }
+      afterCommit?.();
       updateSavedCountsUI();
       renderSavedJobsList();
       return true;
@@ -1551,6 +1589,7 @@
         billableSf: calc.billableStoneSf,
         finalTotalWithTax: calc.finalQuoteWithTax,
         netMarginPct: calc.trueNetMarginPct,
+        shopGrossProfit: calc.shopGrossProfit,
         discountText: discountTextFor(calc)
       };
     }
@@ -1559,7 +1598,7 @@
       const inputs = currentJobInputs();
       return {
         ...JSON.parse(JSON.stringify(inputs)),
-        id: draftId,
+        id: draft.id,
         savedAt: new Date().toISOString(),
         projectName: inputs.projectName || 'Untitled Estimate',
         summaryCache: summarizeEstimate(latestCalc)
@@ -1591,9 +1630,32 @@
     async function saveCurrentJob() {
       recalculate();
       if (!canIssueQuote()) return;
+      const editor = draft;
       const snapshot = captureCurrentJobSnapshot();
-      if (!await persistSavedJobs(jobs => mergeSavedJobs(jobs, [snapshot]))) return;
-      showToast(`Saved "${snapshot.projectName}" (${formatCurrency(snapshot.summaryCache.finalTotalWithTax, 2)})`);
+      snapshot.revision = newJobId();
+      // Queue clicks from this editor. Each transaction checks the revision committed
+      // by the previous click, even if the user has since switched to another draft.
+      editor.pending = editor.pending.then(async () => {
+        const saved = await persistSavedJobs(jobs => {
+          const existing = jobs.find(job => job.id === snapshot.id);
+          if (savedRevision(existing) !== editor.revision) throw new SavedJobConflict(editor, existing);
+          return mergeSavedJobs(jobs, [snapshot]);
+        }, () => {
+          editor.revision = snapshot.revision;
+          if (editor === draft) state.currentJobId = snapshot.id;
+        });
+        if (!saved || editor !== draft) return;
+        showToast(`Saved "${snapshot.projectName}" (${formatCurrency(snapshot.summaryCache.finalTotalWithTax, 2)})`);
+      });
+      await editor.pending;
+    }
+
+    function saveConflictCopy() {
+      beginDraft(null);
+      const name = document.getElementById('projectName');
+      name.value = (name.value.trim() || 'Untitled Estimate') + ' (Copy)';
+      updateSavedCountsUI();
+      return saveCurrentJob();
     }
 
     function startNewEstimate(notify = true) {
@@ -1605,9 +1667,16 @@
     }
 
     async function loadJobById(jobId) {
-      await loadSavedJobsFromStorage();
+      if (!await loadSavedJobsFromStorage()) return;
       const job = savedJobs.find(j => j.id === jobId);
-      if (!job) return;
+      if (!job) {
+        const dialog = document.getElementById('saveConflict');
+        if (dialog.open) {
+          document.getElementById('saveConflictMessage').textContent = 'This saved job was deleted. You can keep your draft in a separate copy.';
+          document.getElementById('reloadConflictingJob').hidden = true;
+        } else showToast('This job is no longer in Saved Jobs.');
+        return;
+      }
       try {
         validateEditableEstimate(job);
       } catch (error) {
@@ -1623,8 +1692,7 @@
       document.body.classList.remove('has-estimate-preview');
       state.pricingVersion = job.pricingVersion || 'original';
       state.customLines = customLinesFor(job).map(line => ({ ...line }));
-      state.currentJobId = job.id;
-      draftId = job.id || newJobId();
+      beginDraft(job);
       state.addonRateMode = job.addonRateMode || 'target';
       state.selectedTierId = TIER_CATALOG[job.selectedTierId] ? job.selectedTierId : 'tier2';
       state.selectedColorIndex = job.selectedColorIndex || 0;
@@ -1688,7 +1756,9 @@
 
     async function deleteSavedJob(jobId) {
       const job = savedJobs.find(j => j.id === jobId);
-      if (!await persistSavedJobs(jobs => jobs.filter(j => j.id !== jobId))) return;
+      if (!await persistSavedJobs(jobs => jobs.filter(j => j.id !== jobId), () => {
+        if (draft.id === jobId) beginDraft(null);
+      })) return;
       showToast(`Deleted "${job ? job.projectName : 'job'}"`);
     }
 
@@ -1746,6 +1816,8 @@
         ['Material', material],
         ['Billable area', cache.billableSf != null && Number.isFinite(billableArea) ? `${billableArea.toFixed(2)} SF` : ''],
         ['Saved total (with tax)', cache.finalTotalWithTax != null && Number.isFinite(savedTotal) ? formatCurrency(savedTotal) : ''],
+        ['Job profit after entered costs', Number.isFinite(cache.shopGrossProfit) ? formatCurrency(cache.shopGrossProfit) : ''],
+        ['Job margin', Object.hasOwn(cache, 'netMarginPct') ? formatMargin(cache.netMarginPct) : ''],
         ['Discount', savedDiscountText(job)]
       ].filter(([, value]) => value != null && value !== '');
 
@@ -1813,7 +1885,8 @@
           ? new Date(job.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
           : '';
         const marginPct = cache.netMarginPct;
-        const marginClass = marginPct >= 40 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200';
+        const marginClass = !Number.isFinite(marginPct) ? 'text-slate-700 bg-slate-50 border-slate-200'
+          : marginPct >= 40 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-amber-700 bg-amber-50 border-amber-200';
 
         return `
           <div data-saved-job-card class="p-4 rounded-2xl border transition ${isCurrent ? 'border-costcoNavy bg-blue-50/40 shadow-xs' : 'border-slate-200 bg-white hover:border-slate-300'}">
@@ -1835,8 +1908,9 @@
               <div class="text-right shrink-0">
                 <div class="text-base font-black text-slate-900">${Number.isFinite(cache.finalTotalWithTax) ? formatCurrency(cache.finalTotalWithTax) : 'Total unavailable'}</div>
                 <span class="inline-block mt-1 text-[11px] font-extrabold px-2 py-0.5 rounded-md border ${marginClass}">
-                  ${Number.isFinite(marginPct) ? formatMargin(marginPct) + ' job margin' : 'Margin unavailable'}
+                  ${marginPct === null ? 'Job margin N/A' : Number.isFinite(marginPct) ? formatMargin(marginPct) + ' job margin' : 'Margin unavailable'}
                 </span>
+                ${marginPct === null && Number.isFinite(cache.shopGrossProfit) ? '<div class="text-xs">Job profit ' + formatCurrency(cache.shopGrossProfit) + '</div>' : ''}
               </div>
             </div>
 
@@ -2118,7 +2192,7 @@
             throw new Error(`Backup job ${index + 1}: ${error.message}`);
           }
         }
-        const jobs = incoming.map(migrateSavedJob);
+        const jobs = incoming.map(job => ({ ...migrateSavedJob(job), revision: newJobId() }));
         if (await persistSavedJobs(existing => mergeSavedJobs(existing, jobs))) {
           showToast(`Imported ${jobs.length} saved job(s) from backup`);
         }
@@ -2328,7 +2402,7 @@
                   : `<input hidden aria-invalid="true" aria-label="${name}">`;
               }
               return `<label class="estimate-label">${label}
-                <input class="estimate-input" type="number" step="any" min="0" aria-label="${name}" ${numberValueAttribute(line[key])}
+                <input class="estimate-input" type="number" step="any" min="0" ${key === 'qty' ? 'required' : ''} aria-label="${name}" ${numberValueAttribute(line[key])}
                   oninput="updateCustomLine(${index}, '${key}', this)">
               </label>`;
             }).join('')}
@@ -2729,6 +2803,7 @@
     }
 
     function formatMargin(percent) {
+      if (!Number.isFinite(percent)) return 'N/A';
       if (percent < 40 && percent >= 39.995) return '<40.00%';
       return percent.toFixed(Math.abs(percent - 40) < 0.1 ? 2 : 1) + '%';
     }
@@ -2764,6 +2839,46 @@
       const boundary = round === Math.ceil ? Math.round(value) : Math.floor(value) + 0.5;
       const tolerance = 4 * Number.EPSILON * value;
       return round(Math.abs(value - boundary) <= tolerance ? boundary : value);
+    }
+
+    // Preserve the entered decimal inches through pricing. Converting to floating-point
+    // SF first can move an exact half-cent onto the wrong side of the rounding boundary.
+    function decimalFraction(value) {
+      const [mantissa, exponent = '0'] = String(Number(value)).split('e');
+      const [whole, fraction = ''] = mantissa.split('.');
+      const places = fraction.length - Number(exponent);
+      return {
+        units: BigInt(whole + fraction) * 10n ** BigInt(Math.max(0, -places)),
+        scale: 10n ** BigInt(Math.max(0, places))
+      };
+    }
+
+    function measuredSquareInches(job) {
+      let units = 0n;
+      let scale = 1n;
+      for (const [pieces, depthField] of [[job.counterPieces, 'width'], [job.splashPieces, 'height']]) {
+        for (const piece of pieces) {
+          const length = decimalFraction(piece.length);
+          const depth = decimalFraction(piece[depthField]);
+          const rowScale = length.scale * depth.scale;
+          const commonScale = rowScale > scale ? rowScale : scale;
+          const rowUnits = length.units * depth.units * BigInt(piece.qty ?? 1);
+          units = units * (commonScale / scale) + rowUnits * (commonScale / rowScale);
+          scale = commonScale;
+        }
+      }
+      return { units, scale };
+    }
+
+    function priceMeasuredArea(area, ratePerSf, extraSf = 0, yieldPct = 100) {
+      const squareFeetDivisor = 144n * area.scale;
+      const netArea = area.units + BigInt(extraSf) * squareFeetDivisor;
+      const yieldFraction = decimalFraction(yieldPct);
+      const rateCents = BigInt(Math.round(ratePerSf * 100)); // Catalog rates are specified to cents.
+      const numerator = netArea * rateCents * 100n * yieldFraction.scale;
+      const divisor = squareFeetDivisor * yieldFraction.units;
+      // Round the nonnegative line total half-up to a whole cent before converting to dollars.
+      return Number((2n * numerator + divisor) / (2n * divisor)) / 100;
     }
 
     function validShopCardRate(rate) {
@@ -2807,7 +2922,9 @@
       const includeProtection = job.includeProtection && (!program || billableStoneSf > 0);
       const protectionRetail = includeProtection ? PROTECTION_PLAN_RETAIL : 0;
       const protectionCogs = includeProtection ? (program ? 199 : PROTECTION_PLAN_COGS) : 0;
-      const customerStonePlusProtection = roundMoney(billableStoneSf * installedRate(tier, job.pricingVersion) + protectionRetail);
+      const measuredArea = measuredSquareInches(job);
+      const stoneRetail = priceMeasuredArea(measuredArea, installedRate(tier, job.pricingVersion));
+      const customerStonePlusProtection = roundMoney(stoneRetail + protectionRetail);
 
       let extraNetSlabSf = 0;
       const activeAddonLines = [];
@@ -2891,9 +3008,9 @@
       const exactSlabs = grossYieldSf / JUMBO_SLAB_SF;
       const slabsNeeded = roundAreaUnits(exactSlabs, Math.ceil);
       const remnantSf = Math.max(0, slabsNeeded * JUMBO_SLAB_SF - grossYieldSf);
-      const materialCogs = roundMoney(grossYieldSf * color.slabSfCost);
+      const materialCogs = priceMeasuredArea(measuredArea, color.slabSfCost, extraNetSlabSf, job.usableYieldPct ?? 80);
       const laborRate = shopLaborBaseFor(job) + (isDekton ? 30 : 0);
-      const shopLaborCogs = roundMoney(billableStoneSf * laborRate);
+      const shopLaborCogs = priceMeasuredArea(measuredArea, laborRate);
       const subcontractorCosts = allCogsLines.reduce((sum, line) => sum + line.cogs, 0);
       const totalJobCogs = roundMoney(materialCogs + shopLaborCogs + protectionCogs + subcontractorCosts);
       const shopGrossProfit = roundMoney(totalBizNetRevenuePreTax - totalJobCogs);
@@ -2902,7 +3019,7 @@
       // Reject totals that cannot be represented in cents, including overflowing products.
       if (![grossSubtotal, estimatorTotalWithTax, totalBillActionFlow, totalJobCogs, totalBizNetRevenuePreTax, shopGrossProfit]
           .every(amount => Number.isSafeInteger(Math.round(amount * 100)))) return null;
-      const trueNetMarginPct = revenueCents > 0 ? profitCents * 100 / revenueCents : 0;
+      const trueNetMarginPct = revenueCents > 0 ? profitCents * 100 / revenueCents : null;
 
       return {
         tier, color, counterSf, splashSf, billableStoneSf, includeProtection, protectionCogs,
@@ -3036,19 +3153,6 @@
       document.getElementById('splitGrossProfit').textContent = formatCurrency(shopGrossProfit, 2);
       document.getElementById('splitTrueNetMarginPct').textContent = `${formatMargin(trueNetMarginPct)}`;
 
-      const aboveFloor = trueNetMarginPct >= 40;
-      const splitBadge = document.getElementById('splitMarginStatusBadge');
-      const splitWarn = document.getElementById('splitPromoWarning');
-      if (aboveFloor) {
-        splitBadge.textContent = '✓ Meets 40% floor';
-        splitBadge.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-        splitWarn.classList.add('hidden');
-      } else {
-        splitBadge.textContent = '⚠ Below 40% Floor';
-        splitBadge.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40';
-        splitWarn.classList.remove('hidden');
-      }
-
       // Update Mode 3 (Manager & COGS Audit) DOM
       document.getElementById('mgrNetStoneSf').textContent = `${netStonePlusWfSf.toFixed(2)} SF`;
       document.getElementById('mgrGrossYieldSf').textContent = `${grossYieldSf.toFixed(2)} SF`;
@@ -3083,26 +3187,23 @@
       document.getElementById('mgrGrossProfit').textContent = formatCurrency(shopGrossProfit, 2);
       document.getElementById('mgrNetMarginPct').textContent = `${formatMargin(trueNetMarginPct)}`;
 
-      const mgrBadge = document.getElementById('marginStatusBadge');
-      if (aboveFloor) {
-        mgrBadge.textContent = '✓ Meets 40% floor';
-        mgrBadge.className = 'text-xs font-extrabold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-      } else {
-        mgrBadge.textContent = '⚠ Below 40% Floor';
-        mgrBadge.className = 'text-xs font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30';
-      }
-
-      if (job.pricingVersion === PROGRAM_PRICING) {
-        const health = trueNetMarginPct >= 30 ? 'Healthy (≥30%)' : trueNetMarginPct >= 20 ? 'Moderate (20–<30%)' : 'Low (<20%)';
-        for (const badge of [mgrBadge, splitBadge]) {
-          if (totalBizNetRevenuePreTax > 0) {
-            badge.textContent = health + ' · ' + badge.textContent;
-          } else {
-            badge.textContent = 'Awaiting revenue';
-          }
+      const belowFloor = trueNetMarginPct !== null && trueNetMarginPct < 40;
+      let marginStatus = 'Margin N/A';
+      let badgeColors = 'bg-slate-500/20 text-slate-300 border-slate-500/40';
+      if (trueNetMarginPct !== null) {
+        marginStatus = belowFloor ? '⚠ Below 40% Floor' : '✓ Meets 40% floor';
+        badgeColors = belowFloor ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+        if (job.pricingVersion === PROGRAM_PRICING) {
+          const health = trueNetMarginPct >= 30 ? 'Healthy (≥30%)' : trueNetMarginPct >= 20 ? 'Moderate (20–<30%)' : 'Low (<20%)';
+          marginStatus = health + ' · ' + marginStatus;
         }
-        if (totalBizNetRevenuePreTax <= 0) splitWarn.classList.add('hidden');
       }
+      const splitBadge = document.getElementById('splitMarginStatusBadge');
+      const mgrBadge = document.getElementById('marginStatusBadge');
+      splitBadge.textContent = mgrBadge.textContent = marginStatus;
+      splitBadge.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded border ' + badgeColors;
+      mgrBadge.className = 'text-xs font-extrabold px-2.5 py-1 rounded-lg border ' + badgeColors;
+      document.getElementById('splitPromoWarning').classList.toggle('hidden', !belowFloor);
       const customerView = state.viewMode === 'customer';
       const officeTotal = roundMoney(totalPaidToCostco + totalBillActionFlow);
       document.getElementById('mobileBarGross').textContent = formatCurrency(customerView ? estimatorTotalWithTax : officeTotal);

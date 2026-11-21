@@ -96,6 +96,45 @@ function programJob(overrides = {}) {
   };
 }
 
+test('measured prices round exact decimal half-cents once, after combining all pieces', () => {
+  function quote(length) {
+    return app.calculateEstimate(programJob({
+      selectedTierId: 'tier2',
+      counterPieces: [{ length, width: 36, qty: 2 }],
+      splashPieces: [{ length, height: 36 }]
+    }));
+  }
+  // 48.3075 SF × $150 = $7,246.125.
+  assert.equal(quote(64.41).estimatorPreTaxSubtotal, 7246.13);
+  assert.equal(quote(64.41).estimatorTotalWithTax, 7587.57);
+  assert.equal(quote(64.40999999999998).estimatorPreTaxSubtotal, 7246.12);
+  assert.equal(quote(64.41000000000001).estimatorPreTaxSubtotal, 7246.13);
+  const labor = app.calculateEstimate({ ...counterJob(73.44, 42.25), counterPieces: [{ length: 73.44, width: 42.25, qty: 3 }] });
+  assert.equal(labor.shopLaborCogs, 3232.13);
+  const material = app.calculateEstimate(programJob({ counterPieces: [{ length: 2.4, width: 12 }] }));
+  assert.equal(material.materialCogs, 4.25); // 0.20 SF ÷ 80% × $16.98 = $4.245.
+});
+
+test('undefined margin retains the dollar loss and repairs historical zero-revenue summaries', () => {
+  const job = programJob({ discountMode: 'percent', discountValue: 100 });
+  const c = app.calculateEstimate(job);
+  assert.equal(c.totalBizNetRevenuePreTax, 0);
+  assert.equal(c.trueNetMarginPct, null);
+  assert.equal(c.shopGrossProfit, -529.80);
+  assert.equal(app.formatMargin(c.trueNetMarginPct), 'N/A');
+  const cache = { ...app.summarizeEstimate(c), netMarginPct: 0, finalTotalWithTax: 12.34 };
+  delete cache.shopGrossProfit;
+  const migrated = app.migrateSavedJob({ ...job, summaryCache: cache }).summaryCache;
+  assert.equal(migrated.netMarginPct, null);
+  assert.equal(migrated.shopGrossProfit, -529.80);
+  assert.equal(migrated.finalTotalWithTax, 12.34);
+  const breakeven = programJob({ counterPieces: [], extraDirectTpiPreTax: 100, extraDirectTpiCogs: 100 });
+  const valid = app.summarizeEstimate(app.calculateEstimate(breakeven));
+  assert.equal(valid.netMarginPct, 0);
+  assert.equal(app.formatMargin(valid.netMarginPct), '0.0%');
+  assert.equal(app.migrateSavedJob({ ...breakeven, summaryCache: valid }).summaryCache, valid);
+});
+
 test('new rates, waterfall measurements and yield leave historical jobs at their original prices', () => {
   for (const [idx, rate] of [130, 150, 175, 205].entries()) {
     const job = programJob({

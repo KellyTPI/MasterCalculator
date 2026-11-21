@@ -1,6 +1,20 @@
 # TPI Costco Master Estimator calculation audit
 
-## Local fix verification
+## November 20 review
+
+Three **64.41 × 36 inch** Tier 2 pieces measure **48.3075 SF**. At $150/SF, the exact stone charge is $7,246.125. Rounding the payable line half-up gives **$7,246.13** and a **$7,587.57** member total. The previous subtotal and total were each one cent lower. Installed stone, shop labor and material costs now use decimal measurements through the final cent rounding. An independent 78,000-case comparison across all 39 colors and both pricing schedules matched the expected quote, payment, labor, material, revenue and profit amounts for the cases checked.
+
+With a 100% discount on a 12 × 12 inch Tier 1 counter, protection off and no direct charges, the new schedule gives $0 net revenue and a **$66.23 loss** ($21.23 material and $45.00 labor). The margin displays **N/A**. A break-even job with positive revenue still shows **0.0%**.
+
+Clearing one width on two 96 × 25.5 inch Tier 1 runs previously cut the member quote from $4,628.27 to $2,314.14 with protection off. The editor now holds the last preview and blocks issue until the measurement is complete or the row is removed. Tiers 1–3 require a positive linear-foot quantity when the rep selects Miter. Tier 4 includes the edge. Counted add-ons require whole quantities, and the saved viewer shows the discount actually applied to the quote.
+
+The November pricing schedule rounds demolition up to whole square feet. A 35.2 × 45 inch counter measures exactly 11 SF. Floating-point arithmetic put its area just above 11, so **Sync to Counter SF** previously selected 12 SF of stone demolition and charged $252. The corrected line is **11 SF at $21/SF, or $231 before tax**. The same boundary handling applies when a slab calculation lands exactly on capacity. Original estimates retain nearest-whole-SF demolition billing.
+
+When an estimate file omits base labor, the editor and calculation now use $45/SF for November pricing and $50/SF for original pricing, plus $30/SF for Dekton. Estimate files accept the two Shop Card rates the calculator offers, 10% and 15%. A nonzero quantity for an unknown add-on flags the file for correction before its scope can be quoted.
+
+Independent decimal arithmetic matched 26 calculated results per case across 624 cases covering all 39 colors, both pricing schedules, both add-on rate modes, both Shop Card rates and both funding bases. These checks used the rates configured in the repository. TPI's rate sheet and a settlement statement are still needed to verify the business terms.
+
+## Earlier verification of the original pricing schedule
 
 The local estimator now includes cost-only custom work in job costs, reconciles the member and office payment schedules to cents, applies the 40% floor to the unrounded job margin, and uses the full slab dimensions to calculate capacity. The mobile summary follows the selected view, direct charges appear separately, and the built-in examples calculate their summaries from their inputs. Invalid dimensions block issuing a quote until corrected.
 

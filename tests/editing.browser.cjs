@@ -359,6 +359,113 @@ async function exerciseSavedJobs(page) {
   assert.deepEqual(await stored(), beforeFailure);
 }
 
+async function exerciseCustomQuote(page) {
+  await page.evaluate(() => { startNewEstimate(false); setViewMode('customer'); addCounterPiece('Counter', 12, 12); });
+  await page.locator('#chkProtectionPlan').uncheck();
+  await page.locator('#btnSplitView').click();
+  assert.deepEqual(await Promise.all(['splitOmsPreTax', 'splitTotalPaidCostco', 'splitTotalBillActionFlow']
+    .map(id => page.locator('#' + id).textContent())), ['$104.00', '$108.90', '$27.23']);
+  await page.getByRole('button', { name: '+ Custom line' }).click();
+  await page.getByRole('spinbutton', { name: 'Custom line 1 Unit retail ($)', exact: true }).fill('500');
+  const qty = page.getByRole('spinbutton', { name: 'Custom line 1 Quantity', exact: true });
+  await qty.fill('');
+  await page.locator('#btnCustomerView').click();
+  assert.equal(await qty.inputValue(), '');
+  assert.equal(await page.locator('#custFinalTotalWithTax').textContent(), '$659.69');
+  assert.equal(await page.evaluate(() => latestCalc), null);
+  await page.evaluate(() => saveCurrentJob());
+  assert.ok(await qty.evaluate(el => el === document.activeElement));
+  assert.equal(await page.evaluate(() => state.currentJobId), null);
+  await qty.fill('0');
+  assert.equal(await page.locator('#custFinalTotalWithTax').textContent(), '$136.13');
+  await qty.fill('1');
+  assert.equal(await page.locator('#custFinalTotalWithTax').textContent(), '$659.69');
+  await page.locator('#discountMode').selectOption('percent');
+  await page.locator('#discountValue').fill('100');
+  await page.locator('#btnManagerView').click();
+  assert.equal(await page.locator('#mgrNetMarginPct').textContent(), 'N/A');
+  assert.equal(await page.locator('#mgrGrossProfit').textContent(), '$-66.23');
+  assert.equal(await page.locator('#splitTrueNetMarginPct').textContent(), 'N/A');
+  const officeCopy = await page.evaluate(() => {
+    const copy = window.copyTextFallback;
+    let output;
+    try {
+      window.copyTextFallback = text => { output = text; };
+      copySplitToClipboard();
+    } finally { window.copyTextFallback = copy; }
+    return output;
+  });
+  assert.match(officeCopy, /\$-66\.23 \(N\/A margin\)/);
+  await page.evaluate(() => saveCurrentJob());
+  const card = page.locator('[data-saved-job-card]').filter({ hasText: 'Active' });
+  assert.match(await card.textContent(), /Job margin N\/A/);
+  assert.match(await card.textContent(), /Job profit \$-66\.23/);
+}
+
+async function exerciseConflictingSaves(page) {
+  await page.evaluate(async () => {
+    startNewEstimate(false);
+    document.getElementById('projectName').value = 'Shared kitchen';
+    addCounterPiece('Counter', 12, 12);
+    await saveCurrentJob();
+  });
+  const id = await page.evaluate(() => state.currentJobId);
+  const other = await page.context().newPage();
+  try {
+    await other.goto(url);
+    await other.evaluate(id => loadJobById(id), id);
+    const quantity = page.getByRole('spinbutton', { name: 'Counter 1 quantity', exact: true });
+    await quantity.fill('2');
+    await page.evaluate(() => saveCurrentJob());
+    await other.locator('#repName').fill('Second tab');
+    await other.evaluate(() => saveCurrentJob());
+    const dialog = other.getByRole('dialog', { name: 'Your draft is still open' });
+    assert.ok(await dialog.isVisible());
+    const stored = () => page.evaluate(async id => (await accessSavedJobs()).find(job => job.id === id), id);
+    assert.equal((await stored()).counterPieces[0].qty, 2);
+    await dialog.getByRole('button', { name: 'Keep editing' }).click();
+    assert.equal(await other.locator('#repName').inputValue(), 'Second tab');
+    await other.evaluate(() => saveCurrentJob());
+    await dialog.getByRole('button', { name: 'Save draft as a copy' }).click();
+    await other.waitForFunction(id => state.currentJobId && state.currentJobId !== id, id);
+    const copy = await other.evaluate(async () => (await accessSavedJobs()).find(job => job.id === state.currentJobId));
+    assert.match(copy.projectName, /\(Copy\)$/);
+    assert.equal(copy.repName, 'Second tab');
+    assert.equal(copy.counterPieces[0].qty ?? 1, 1);
+    assert.equal((await stored()).repName, '');
+
+    await other.evaluate(id => loadJobById(id), id);
+    await quantity.fill('3');
+    await page.evaluate(() => saveCurrentJob());
+    await other.evaluate(() => saveCurrentJob());
+    await dialog.getByRole('button', { name: 'Reload saved version' }).click();
+    await other.waitForFunction(() => !document.getElementById('saveConflict').open);
+    assert.equal(await other.getByRole('spinbutton', { name: 'Counter 1 quantity', exact: true }).inputValue(), '3');
+    await other.locator('#repName').fill('Reloaded');
+    await other.evaluate(() => saveCurrentJob());
+    assert.equal((await stored()).repName, 'Reloaded');
+
+    // Restoring a backup can replace the active job with a record carrying its old revision.
+    const restored = { ...await stored(), projectName: 'Restored from backup' };
+    await other.locator('#importJsonInput').setInputFiles({
+      name: 'restore.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify([restored]))
+    });
+    await other.waitForFunction(() => document.getElementById('toastText').textContent.includes('Imported 1'));
+    await other.evaluate(() => saveCurrentJob());
+    assert.ok(await dialog.isVisible());
+    assert.equal((await stored()).projectName, 'Restored from backup');
+    await dialog.getByRole('button', { name: 'Keep editing' }).click();
+
+    await page.evaluate(id => deleteSavedJob(id), id);
+    await other.evaluate(() => saveCurrentJob());
+    assert.ok(await dialog.isVisible());
+    assert.equal(await dialog.getByRole('button', { name: 'Reload saved version' }).count(), 0);
+    assert.equal(await stored(), undefined);
+  } finally {
+    await other.close();
+  }
+}
+
 async function exerciseLegacyStorage(browser, jobs) {
   for (const legacy of [JSON.stringify(jobs), '[]', 'unreadable']) {
     const context = await browser.newContext();
@@ -395,6 +502,8 @@ async function main() {
       await exerciseBillingBoundaries(page);
       await exerciseQuoteValidation(page);
       await exerciseSavedJobs(page);
+      await exerciseCustomQuote(page);
+      await exerciseConflictingSaves(page);
       if (width === 1366) await exerciseLegacyStorage(browser, await page.evaluate(() => buildSampleSavedJobs()));
       assert.deepEqual(errors, []);
       await context.close();
